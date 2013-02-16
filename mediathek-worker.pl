@@ -203,10 +203,6 @@ sub update_db { my ($c, $xml) = @_;
 		$this->{channel} = $prev->{channel} if ($this->{channel} eq '' && $prev->{channel} ne '');
 		$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
 		$this->{topic} = $prev->{topic} if ($this->{topic} eq '' && $prev->{topic} ne '');
-		#print join(",", @{$this}{@keys}). "\n";
-		if ($this->{topic} eq 'Tatort') {
-			print(Dumper($this));
-		}
 		$prev = $this;
 		next if ($now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
 			> $c->{keepForDays} * 86400);
@@ -215,12 +211,6 @@ sub update_db { my ($c, $xml) = @_;
 			{ key => 'channel_date_title_unique' });
 	}
 	$fh->close();
-
-#	$tv->populate([\@dbkeys, @items]);
-# # 	my $fh = 'readDatabaseFh';
-# # 	open($fh, "$cmd |");
-# # 		my @lines = (<$fh>);
-# # 	close($fh);
 }
 
 my %TvTableDesc = ( parameters => { width => 79 },
