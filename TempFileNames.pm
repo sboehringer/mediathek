@@ -1012,7 +1012,7 @@ sub StartStandardScript { my ($defaults, $options, %sso) = @_;
 		exit(!$result);
 	}
 	my $c = {};
-	$c = readConfigFile($o->{config}) if (defined($o->{config}) && -e $o->{config});
+	$c = readConfigFile($o->{config}, { default => {} }) if (defined($o->{config}));
 	my $cred = undef;
 	if (defined($o->{credentials})) {
 		eval('use KeyRing');
