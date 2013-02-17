@@ -30,7 +30,7 @@ $main::d = {
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update.xml',
 	videolibrary => "$ENV{HOME}/Videos/Mediathek",
 	keepForDays => 10,
-	refreshServers => 30,
+	refreshServers => 0,
 	refreshTvitems => 0,
 };
 # options
@@ -39,15 +39,12 @@ $main::o = [
 $main::usage = '';
 $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --createdb
-	mediathek-worker.pl --dump
 	mediathek-worker.pl --updatedb
-	mediathek-worker.pl --fetchall
 	mediathek-worker.pl --search query1 query2 ...
 	mediathek-worker.pl --fetch query1 query2 ...
-	mediathek-worker.pl --dumpschema
 	mediathek-worker.pl --addsearch query1 query2 ...
 	mediathek-worker.pl --deletesearch id1 ...
-	mediathek-worker.pl --autosfetch
+	mediathek-worker.pl --autofetch
 
 	Examples:
 	# and
@@ -61,6 +58,10 @@ $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --addsearch
 	# delete search
 	mediathek-worker.pl --deletesearch 1
+
+	Debugging functions:
+	mediathek-worker.pl --dump
+	mediathek-worker.pl --dumpschema
 
 HELP_TEXT
 
@@ -89,9 +90,6 @@ my $sqlitedb = <<DBSCHEMA;
 		UNIQUE(recording)
 	);
 DBSCHEMA
-
-my $dbfile = "$ENV{HOME}/tmp/test.sqlite";
-my $dumpdir = "$ENV{HOME}/tmp/Schemas";
 
 sub instantiate_db { my ($c) = @_;
 	my $dbfile = "$c->{location}/mediathek.db";
@@ -154,66 +152,15 @@ sub meta_get { my ($urls, $o, %c) = @_;
 }
 
 sub prune_db { my ($c) = @_;
-	my $s = load_db($c);
-	my $now = time();
-	my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
-	my $prune_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now - $c->{keepForDays} * 86400));
-	Log("Now: $now_str, pruning older than: $prune_str", 1);
-	my $tv = $s->resultset('TvItem');
-	my @r = $tv->search({ date => { '<' => $prune_str } });
-	Log('About to delete '. int(@r). ' items.', 1);
-	$tv->delete();
+	load_db($c)->prune();
 }
 
 # <A> no proper quoting of csv output
 sub update_db { my ($c, $xml) = @_;
-	# <p> prune first
-	prune_db($c);
-
-	# <p> fetch new items
-	my $serverList = meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
-		refetchAfter => $c->{refreshServers});
-	my $servers = "cat $serverList | xml sel -T -t -m //Download_Filme_1 -v . -n";
-	Log($servers, 4);
-	$xml = meta_get([split(/\n/, `$servers`)], "$c->{location}/database_raw.xml.bz2",
-		refetchAfter => $c->{refreshTvitems})	# , seq => 1
-		if (!defined($xml));
-	my $sep = ':_:';
-	my $cmd = 'cat '. qs($xml). ' | '
-		.'bzcat | perl -pe "tr/\n/ /" | xml sel -T -t -m //X'
-		." -v ./b -o $sep -v ./c -o $sep -v ./d -o $sep -v ./e -o $sep -v ./f -o $sep -v ./g -o $sep -o 'flvstreamer --resume ' -v ./i -n";
-	my @keys = ('channel', 'topic', 'title', 'day', 'time', 'url', 'command');
-
-	my $fh = IO::File->new("$cmd |");
-	die "couldn't read '$xml'" if (!defined($fh));
-	my @lines = map { substr($_, 0, -1) } (<$fh>);
-	my $prev;
-
-	my @dbkeys = ('channel', 'topic', 'title', 'date', 'url', 'command');
-	my $s = load_db($c);
-	my $tv = $s->resultset('TvItem');
-	my $i = 0;
-	my $now = time();
-	for my $l (@lines) {
-		if (!(++$i % 1e3)) {
-			$tv->clear_cache();
-			Log(sprintf("%3.1eth entry", $i), 3);
-		}
-		my $this = makeHash(\@keys, [split(/$sep/, $l)]);
-		$this->{channel} = $prev->{channel} if ($this->{channel} eq '' && $prev->{channel} ne '');
-		$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
-		$this->{topic} = $prev->{topic} if ($this->{topic} eq '' && $prev->{topic} ne '');
-		$prev = $this;
-		next if ($now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
-			> $c->{keepForDays} * 86400);
-
-		$tv->find_or_create(makeHash(\@dbkeys, [@{$this}{@dbkeys}]),
-			{ key => 'channel_date_title_unique' });
-	}
-	$fh->close();
+	load_db($c)->update($c, $xml);
 }
 
-my %TvTableDesc = ( parameters => { width => 79 },
+%main::TvTableDesc = ( parameters => { width => 79 },
 	columns => {
 		channel => { width => -7, format => '%*s' },
 		date => { width => 19, format => '%*s' },
@@ -221,7 +168,7 @@ my %TvTableDesc = ( parameters => { width => 79 },
 	},
 	print => ['channel', 'date', 'title']
 );
-my %TvGrepDesc = ( parameters => { width => 79 },
+%main::TvGrepDesc = ( parameters => { width => 79 },
 	columns => {
 		id => { width => 4, format => '%*s' },
 		expression => { width => -70, format => '%*s' }
@@ -229,67 +176,30 @@ my %TvGrepDesc = ( parameters => { width => 79 },
 	print => ['id', 'expression']
 );
 
-sub search { my ($c, @queries) = @_;
-	my $s = load_db($c);
-
-	my $tv_item = $s->resultset('TvItem');
-	#$literature_item->populate([{ id => 21, name => 'item 1' }]);
-	my @r = map { my $query = $_;
-		my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
-		my %query = map { my ($k, $v, $not) = ($_, $terms{$_});
-			($not, $v) = ($v =~ m{^([!]?)(.*)}sog);
-			($k, { ($not? 'not like': 'like'), $v })
-		} keys %terms;
-		Log(Dumper(\%query), 5);
-		my @items = $tv_item->search(\%query);
-		@items
-	} @queries;
-	return @r;
-}
-
-sub search_db { my ($c, @queries) = @_;
-	my @r = search($c, @queries);
-	my $t = formatTable(\%TvTableDesc, \@r);
-	print($t. "\n");
-}
-
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 	return strftime($fmtOut, strptime($date, $fmtIn));
 }
 
+sub search_db { my ($c, @queries) = @_;
+	my @r = load_db($c)->search(@queries);
+	print(formatTable(\%TvTableDesc, \@r). "\n");
+}
+
 sub fetch_from_db { my ($c, @queries) = @_;
-	my @r = search($c, @queries);
-	for my $r (@r) {
-		$r->fetchTo("$ENV{HOME}/Videos");
-	}
+	load_db($c)->fetch($c->{videolibrary}, @queries);
 }
 
 sub add_search { my ($c, @queries) = @_;
-	my $s = load_db($c);
-	my $query = $s->resultset('TvGrep');
-	for $q (@queries) { $query->create({expression => $q}); }
-	my $t = formatTable(\%TvGrepDesc, [$query->all]);
-	print($t. "\n");
+	my @searches = load_db($c)->add_search(@queries);
+	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
-	my $s = load_db($c);
-	my $query = $s->resultset('TvGrep');
-	for my $id (@ids) { $query->search({id => $id})->delete(); }
-	print(formatTable(\%TvGrepDesc, [$query->all]). "\n");
+	my @searches = load_db($c)->delete_search(@ids);
+	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
 }
 
-sub auto_fetch_db { my ($c, @queries) = @_;
-	my $s = load_db($c);
-	my @queries = map { $_->expression } $s->resultset('TvGrep')->all;
-	my @r = search($c, @queries);
-	for my $r (@r) {
-		my $record = $s->resultset('TvRecording')->find_or_new({ recording => $r->id },
-			{ key => 'recording_unique' });
-		if (!$record->in_storage()) {
-			my $ret = $r->fetchTo($c->{videolibrary});
-			$record->insert() if (!$ret);
-		}
-	}
+sub auto_fetch_db { my ($c) = @_;
+	load_db($c)->auto_fetch($c->{videolibrary});
 }
 
 #main $#ARGV @ARGV %ENV
