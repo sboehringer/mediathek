@@ -1,0 +1,26 @@
+== Description ==
+
+This project is a command line equivalent to the Mediathekview project on sourceforge (http://http://zdfmediathk.sourceforge.net). It allows you to set up automatic downloads for programming from German public TV stations. This project is freeloading on the data infrastructure provided by the sourceforge project (refreshing of programming content). Please support the Mediathekview project in maintaining their service in this regard and otherwise.
+
+== Author ==
+
+Stefan Böhringer <github-projects@s-boehringer.org>
+
+== Raspberry Pi setup ==
+
+This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running. The following setup-guide expects the raspbian distribution.
+
+- Dependencies
+  + bzip2
+	sudo aptitude install bzip2
+  + xmlstarlet
+	sudo aptitude install xmlstarlet
+  + flvstreamer
+	sudo aptitude install flvstreamer
+  + Perl DBIx
+  + Perl Moose
+
+
+== Is Perl dead? ==
+
+This project is implemented in just 350 lines of Perl code including database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of shortness or clarity (in Perl or another scripting language), I would like to know. One disadvantage of this implementation is that it is slow owing to the Moose part.
