@@ -1002,8 +1002,9 @@ sub StartStandardScript { my ($defaults, $options, %sso) = @_;
 	# <!> reset $o in order to prevent Getopt::Long from calling triggers interpreted as callbacks
 	my $od = { %$o };	# option defaults
 	$od->{$_} = undef foreach (@triggers);
-	$o = {};	# option values
-	my $result = GetOptionsStandard($o, @options);
+	my $os = {};	# specified options
+	my $result = GetOptionsStandard($os, @options);
+	$o = { %$od, %$os };
 	my $programName = cmdNm();
 
 	if ($o->{help} || !$result || ($noArgs && $o->{helpOnEmptyCall})) {
@@ -1018,8 +1019,8 @@ sub StartStandardScript { my ($defaults, $options, %sso) = @_;
 		$cred = KeyRing->new()->handleCredentials($o->{credentials},
 			'.this_cookie.'. $programName) || exit(0)
 	}
-	my $deepR = { o => { %$od, %$o }, c => $c, cred => $cred, _triggers => $subs };
-	my $flatR = { %$od, %$c, %$o, %$cred, _triggers => $subs };
+	my $deepR = { o => $o, c => $c, cred => $cred, _triggers => $subs };
+	my $flatR = { %$od, %$c, %$os, %$cred, _triggers => $subs };
 	my $r = $o->{returnDeepStruct}? $deepR: $flatR;
 	# handle call triggers, triggering might be delayed
 	callTriggersFromOptions($r, @ARGV) if ($o->{callTriggers});
