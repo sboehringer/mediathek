@@ -18,6 +18,7 @@ $main::d = {
 	config => 'mediathek.cfg',
 	'updatedb' => \&update_db,
 	createdb => \&create_db,
+	printconfig => \&print_config,
 	dump => \&dump_db,
 	search => \&search_db,
 	addsearch => \&add_search,
@@ -114,6 +115,10 @@ sub dump_schema { my ($c) = @_;
 sub create_db { my ($c) = @_;
 	instantiate_db($c);
 	dump_schema($c);
+}
+
+sub print_config { my ($c) = @_;
+	print(Dumper($c));
 }
 
 sub load_db { my ($c) = @_;
