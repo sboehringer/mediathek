@@ -48,3 +48,9 @@ bzcat ~/.local/share/applications/mediathek/database_raw.xml.bz2 | \
 
 <X><c>Tatort (AD)</c><d>Die schöne Mona ist tot (AD)</d><e>03.02.2013</e><f>20:15:00</f><g>rtmp://apasfw.apa.at/cms-worldwide/mp4:2013-02-03_2015_sd_02_Tatort_____5349177__o__0000456427__s5362135___D__ORF2ADHiRes_20150803P_21422902P_Q6A.mp4</g><i>-r rtmp://apasfw.apa.at/cms-worldwide/mp4:2013-02-03_2015_sd_02_Tatort_____5349177__o__0000456427__s5362135___D__ORF2ADHiRes_20150803P_21422902P_Q6A.mp4 -y mp4:2013-02-03_2015_sd_02_Tatort_____5349177__o__0000456427__s5362135___D__ORF2ADHiRes_20150803P_21422902P_Q6A.mp4 --flashVer WIN11,4,402,265 --swfUrl http://tvthek.orf.at/flash/player/TVThekPlayer_9_ver18_1.swf</i><k>http://tvthek.orf.at/programs/3241743-Tatort--AD-</k></X>
 
+#
+#	github
+#
+
+git remote add origin git@github.com:sboehringer/mediathek.git
+git push -u origin master

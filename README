@@ -1,6 +1,14 @@
 == Description ==
 
-This project is a command line equivalent to the Mediathekview project on sourceforge (http://http://zdfmediathk.sourceforge.net). It allows you to set up automatic downloads for programming from German public TV stations. This project is freeloading on the data infrastructure provided by the sourceforge project (refreshing of programming content). Please support the Mediathekview project in maintaining their service in this regard and otherwise.
+This project is a command line equivalent to the Mediathekview project on sourceforge (http://zdfmediathk.sourceforge.net). It allows you to set up automatic downloads for programming from German public TV stations. This project is freeloading on the data infrastructure provided by the sourceforge project (refreshing of programming content). Please support the Mediathekview project in maintaining their service in this regard and otherwise.
+
+== Version ==
+
+This is version 1.0.
+
+== License ==
+
+This version is licensed under the LGPL 2.0.
 
 == Author ==
 
@@ -11,6 +19,8 @@ Stefan Böhringer <github-projects@s-boehringer.org>
 This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running. The following setup-guide expects the raspbian distribution.
 
 - Dependencies
+  + sqlite
+	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl
   + bzip2
 	sudo aptitude install bzip2
   + xmlstarlet
@@ -18,9 +28,17 @@ This project is meant to be small enough to run on a Raspberry Pi. A typical wor
   + flvstreamer
 	sudo aptitude install flvstreamer
   + Perl DBIx
+	sudo aptitude install libdbi-perl libdbix-class-schema-loader-perl
   + Perl Moose
+	sudo aptitude install libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
 
+In one go:
+	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl bzip2 xmlstarlet flvstreamer libdbi-perl libdbix-class-schema-loader-perl libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
+
+Install into ~/src
+	# assume ~/bin exists and is in $PATH
+	( cd ~ ; mkdir --parent src MyLibrary/Configs .local/share/applications/mediathek ; ln -s `which xmlstarlet` ~/bin/xml ; cd src ; git clone git://github.com/sboehringer/mediathek.git )
 
 == Is Perl dead? ==
 
-This project is implemented in just 350 lines of Perl code including database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of shortness or clarity (in Perl or another scripting language), I would like to know. One disadvantage of this implementation is that it is slow owing to the Moose part.
+This project is implemented in just 350 lines of Perl code including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), I would like to know. One disadvantage of this implementation is that it is slow owing to the Moose part.
