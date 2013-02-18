@@ -38,7 +38,14 @@ In one go:
 Install into ~/src
 	# assume ~/bin exists and is in $PATH
 	( cd ~ ; mkdir --parent src MyLibrary/Configs .local/share/applications/mediathek ; ln -s `which xmlstarlet` ~/bin/xml ; cd src ; git clone git://github.com/sboehringer/mediathek.git )
+	# install crontab
+	cd ~/src/mediathek ; cat > crontab.txt <<CRONTAB
+PERL5LIB=$PERL5LIB:$HOME/src/mediathek
+PATH=$PATH:$HOME/src/mediathek
+0 4 * * *    $HOME/src/mediathek/mediathek-worker.pl --updatedb ; $HOME/src/mediathek/mediathek-worker.pl --autofetch
+CRONTAB
+	crontab -l | cat - crontab.txt | crontab -
 
-== Is Perl dead? ==
+== Power of Perl ==
 
-This project is implemented in just 350 lines of Perl code including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), I would like to know. One disadvantage of this implementation is that it is slow owing to the Moose part.
+This project is implemented in just 350 lines of Perl code including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), please let me know. One disadvantage of this implementation is that it is slow owing to the Moose part.
