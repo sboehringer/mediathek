@@ -29,18 +29,27 @@ class My::Schema {
 		$tv->delete();
 	}
 
+	method serverList($c) {
+		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
+			refetchAfter => $c->{refreshServers});
+		# seperate scanning due to faulty XML
+		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n";
+		# assume serverList is ordered according to date
+		my @serverList = split(/\n/, `$servers`);
+		#my $dates = "cat $serverList | xml sel -T -t -m //Datum -v . -n";
+		#my @dates = split(/\n/, `$dates`);
+		#@serverList = sort {  } @serverList;
+		return @serverList;
+	}
+
 	# <A> no proper quoting of csv output
 	method update($c, $xml) {
 		$self->prune($c->{keepForDays});
 		#
 		# <p> xml parsing of new items
 		#
-		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
-			refetchAfter => $c->{refreshServers});
-		my $servers = "cat $serverList | xml sel -T -t -m //Download_Filme_1 -v . -n";
-		Log($servers, 4);
-		$xml = main::meta_get([split(/\n/, `$servers`)], "$c->{location}/database_raw.xml.bz2",
-			refetchAfter => $c->{refreshTvitems})	# , seq => 1
+		$xml = main::meta_get([$self->serverList($c)], "$c->{location}/database_raw.xml.bz2",
+			refetchAfter => $c->{refreshTvitems}, seq => 1)
 			if (!defined($xml));
 		my $sep = ':_:';
 		my $cmd = 'cat '. qs($xml). ' | '
@@ -121,6 +130,9 @@ class My::Schema {
 			if (!$record->in_storage()) {
 				my $ret = $r->fetchTo($destination);
 				$record->insert() if (!$ret);
+				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
+			} else {
+				Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
 			}
 		}
 	}

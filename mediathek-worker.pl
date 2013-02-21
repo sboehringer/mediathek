@@ -27,6 +27,7 @@ $main::d = {
 	fetch => \&fetch_from_db,
 	prune => \&prune_db,
 	dumpschema => \&dump_schema,
+	serverlist => \&serverList,
 	location => "$ENV{HOME}/.local/share/applications/mediathek",
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update.xml',
 	videolibrary => "$ENV{HOME}/Videos/Mediathek",
@@ -119,6 +120,11 @@ sub create_db { my ($c) = @_;
 
 sub print_config { my ($c) = @_;
 	print(Dumper($c));
+}
+
+sub serverList { my ($c) = @_;
+	my @servers = load_db($c)->serverList($c);
+	print(Dumper([@servers]));
 }
 
 sub load_db { my ($c) = @_;
