@@ -11,6 +11,7 @@ use Module::Load;
 use LWP::Simple;
 use POSIX qw(strftime mktime);
 use POSIX::strptime qw(strptime);
+use utf8;
 
 
 # default options
@@ -50,8 +51,9 @@ $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 
 	Examples:
 	# and
-	mediathek-worker.pl --search 'topic:Tatort;channel:ARD;title:!Vorschau%'
+	mediathek-worker.pl --addsearch 'topic:Tatort;channel:ARD;title:!Vorschau%'
 	mediathek-worker.pl --addsearch 'channel:ARTE%;title:360%'
+	mediathek-worker.pl --addsearch 'channel:ARTE.DE;title:Reiseporträts'
 	# or
 	mediathek-worker.pl --search 'topic:Tatort' 'channel:ARD'
 	# permanently add search
@@ -69,7 +71,7 @@ HELP_TEXT
 
 my $sqlitedb = <<DBSCHEMA;
 	CREATE TABLE tv_item (
-		id integer primary key,
+		id integer primary key autoincrement,
 		channel text not null,
 		topic text,
 		title text not null,
@@ -82,12 +84,12 @@ my $sqlitedb = <<DBSCHEMA;
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
 	CREATE INDEX tv_item_title_idx ON tv_item (title);
 	CREATE TABLE tv_grep (
-		id integer primary key,
+		id integer primary key autoincrement,
 		expression text not null,
 		UNIQUE(expression)
 	);
 	CREATE TABLE tv_recording (
-		id integer primary key,
+		id integer primary key autoincrement,
 		recording integer REFERENCES tv_item(id),
 		UNIQUE(recording)
 	);
@@ -148,10 +150,11 @@ sub dump_db { my ($c) = @_;
 
 sub meta_get { my ($urls, $o, %c) = @_;
 	return undef if (!@$urls);
+	%c = (seq => 0, sleep => 5, retries => 5, %c);
 	$o = tempFileName("/tmp/perl_tmp_$ENV{USER}/mediathek", '.bz2') if (!defined($o));
 	return $o if (-e $o && -M $o < ($c{refetchAfter} || 0));	# time in days
 
-	for (my $i = 0; $i < ($c{retries} || 5); $i++, sleep($c{sleep} || 3)) {
+	for (my $i = 0; $i < ($c{retries} || 5); $i++, sleep($c{sleep})) {
 		my $no = $c{seq}? ($i % int(@$urls)): rand(int(@$urls));
 		my $url = $urls->[$no];
 		Log("Fetching $url --> $o", 4);

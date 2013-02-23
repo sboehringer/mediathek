@@ -12,6 +12,7 @@ class My::Schema {
 	use Data::Dumper;
 	use POSIX qw(strftime mktime);
 	use POSIX::strptime qw(strptime);
+	use utf8;
 
 	method greetings() {
 		Log("Hello world");
@@ -24,9 +25,9 @@ class My::Schema {
 			localtime($now - $keepForDays * 86400));
 		Log("Now: $now_str, pruning older than: $prune_str", 1);
 		my $tv = $self->resultset('TvItem');
-		my @r = $tv->search({ date => { '<' => $prune_str } });
-		Log('About to delete '. int(@r). ' items.', 1);
-		$tv->delete();
+		my $tv_rs = $tv->search_rs({ date => { '<' => $prune_str } });
+		Log('About to delete '. $tv_rs->count. ' items.', 1);
+		$tv_rs->delete();
 	}
 
 	method serverList($c) {
@@ -54,35 +55,47 @@ class My::Schema {
 		my $sep = ':_:';
 		my $cmd = 'cat '. qs($xml). ' | '
 			.'bzcat | perl -pe "tr/\n/ /" | xml sel -T -t -m //X'
-			." -v ./b -o $sep -v ./c -o $sep -v ./d -o $sep -v ./e -o $sep -v ./f -o $sep -v ./g -o $sep -o 'flvstreamer --resume ' -v ./i -n";
+			." -v ./b -o $sep -v ./c -o $sep -v ./d -o $sep -v ./e -o $sep -v ./f -o $sep -v ./g -o $sep -v ./i -n";
 		#
 		# <p> database update
 		#
 		my @keys = ('channel', 'topic', 'title', 'day', 'time', 'url', 'command');
 		my @dbkeys = ('channel', 'topic', 'title', 'date', 'url', 'command');
+		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$xml'" if (!defined($fh));
 		my @lines = map { substr($_, 0, -1) } (<$fh>);
-		my $prev;
-		my $tv = $self->resultset('TvItem');
+		my $prev = {};
 		my $i = 0;
 		my $now = time();
 		for my $l (@lines) {
+			my $tv = $self->resultset('TvItem');
 			if (!(++$i % 1e3)) {
-				$tv->clear_cache();
+				$self->resultset('TvItem')->clear_cache();
 				Log(sprintf("%3.1eth entry", $i), 3);
 			}
 			my $this = makeHash(\@keys, [split(/$sep/, $l)]);
-			$this->{channel} = $prev->{channel} if ($this->{channel} eq '' && $prev->{channel} ne '');
+			# <p> field carry over
+			$this->{channel} = $prev->{channel} if ($this->{channel} eq '');
+			$this->{topic} = $prev->{topic} if ($this->{topic} eq '');
+			$prev = $this;
+			# <p> skip bogus entries
 			next if ($this->{day} eq '' || $this->{time} eq '');
 			$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
-			$this->{topic} = $prev->{topic} if ($this->{topic} eq '' && $prev->{topic} ne '');
-			$prev = $this;
-			next if ($this->{date} eq '' || $now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
+			next if ($this->{date} eq ''
+				|| $now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
 				> $c->{keepForDays} * 86400);
 
-			$tv->find_or_create(makeHash(\@dbkeys, [@{$this}{@dbkeys}]),
-				{ key => 'channel_date_title_unique' });
+			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
+			#print 'exists: '. @items. "\n";
+			my $item = makeHash(\@dbkeys, [@{$this}{@dbkeys}]);
+ 			my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
+			
+			#my $i = $tv->find($item, { key => 'channel_date_title_unique' });
+			#print "Defined: ". defined($i). "\n";
+			#$i = $tv->create(makeHash(\@dbkeys, [@{$this}{@dbkeys}])) if (!defined($i));
+			#print $this->{title}, " ", $this->{channel}, " ", $this->{date}, "\n";
+			#Log($i->id. " ".$i->title. " ". $i->channel. " ". $i->date, 6);
 		}
 		$fh->close();
 	}
@@ -141,6 +154,7 @@ class My::Schema {
 class My::Schema::Result::TvItem {
 	use TempFileNames;
 	use Data::Dumper;
+	use utf8;
 
 	# default format: day_title
 	method fetchTo(Str $dest, Str $fmt = '%D_%T.flv') {
@@ -151,8 +165,8 @@ class My::Schema::Result::TvItem {
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
 		my $command = $self->command();
-		$command = 'flvstreamer --resume -r '. $self->url() if (length($command) < 32);
-		return System($command. ' -o '. qs($destPath), 2);
+		$command = '-r '. $self->url() if (length($command) < 16);
+		return System('flvstreamer --resume '. $command. ' -o '. qs($destPath), 2);
 	}
   __PACKAGE__->meta->make_immutable(inline_constructor => 0);
 }
