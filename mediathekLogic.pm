@@ -67,12 +67,13 @@ class My::Schema {
 		my @lines = map { substr($_, 0, -1) } (<$fh>);
 		my $prev = {};
 		my $i = 0;
+		my $icnt = 0;	# insert count
 		my $now = time();
 		for my $l (@lines) {
 			my $tv = $self->resultset('TvItem');
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
-				Log(sprintf("%3.1eth entry", $i), 3);
+				Log(sprintf("%3.1eth entry", $i), 4);
 			}
 			my $this = makeHash(\@keys, [split(/$sep/, $l)]);
 			# <p> field carry over
@@ -89,8 +90,12 @@ class My::Schema {
 			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
 			#print 'exists: '. @items. "\n";
 			my $item = makeHash(\@dbkeys, [@{$this}{@dbkeys}]);
- 			my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
-			
+			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
+			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_unique' });
+			if (!$item0->in_storage) {
+				$icnt++;
+				$item0->insert;
+			}
 			#my $i = $tv->find($item, { key => 'channel_date_title_unique' });
 			#print "Defined: ". defined($i). "\n";
 			#$i = $tv->create(makeHash(\@dbkeys, [@{$this}{@dbkeys}])) if (!defined($i));
@@ -98,6 +103,7 @@ class My::Schema {
 			#Log($i->id. " ".$i->title. " ". $i->channel. " ". $i->date, 6);
 		}
 		$fh->close();
+		Log(sprintf('Added %d items.', $icnt), 3);
 	}
 
 	method add_search(@queries) {
