@@ -155,9 +155,9 @@ sub meta_get { my ($urls, $o, %c) = @_;
 	return $o if (-e $o && -M $o < ($c{refetchAfter} || 0));	# time in days
 
 	for (my $i = 0; $i < ($c{retries} || 5); $i++, sleep($c{sleep})) {
-		my $no = $c{seq}? ($i % int(@$urls)): rand(int(@$urls));
+		my $no = $c{seq}? ($i % int(@$urls)): int(rand(int(@$urls)));
 		my $url = $urls->[$no];
-		Log("Fetching $url --> $o", 4);
+		Log("Fetching $url --> $o [No: $no]", 4);
 		my $response = getstore($url, $o);
 		last if ($response == 200);
 	}
