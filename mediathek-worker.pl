@@ -149,15 +149,16 @@ sub dump_db { my ($c) = @_;
 }
 
 sub meta_get { my ($urls, $o, %c) = @_;
-	return undef if (!@$urls);
+	my $total = int(@$urls);
+	return undef if (!$total);
 	%c = (seq => 0, sleep => 5, retries => 5, %c);
 	$o = tempFileName("/tmp/perl_tmp_$ENV{USER}/mediathek", '.bz2') if (!defined($o));
 	return $o if (-e $o && -M $o < ($c{refetchAfter} || 0));	# time in days
 
 	for (my $i = 0; $i < ($c{retries} || 5); $i++, sleep($c{sleep})) {
-		my $no = $c{seq}? ($i % int(@$urls)): int(rand(int(@$urls)));
+		my $no = $c{seq}? ($i % int(@$urls)): int(rand($total));
 		my $url = $urls->[$no];
-		Log("Fetching $url --> $o [No: $no]", 4);
+		Log("Fetching $url --> $o [No: $no/$total]", 4);
 		my $response = getstore($url, $o);
 		last if ($response == 200);
 	}
