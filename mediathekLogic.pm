@@ -50,7 +50,7 @@ class My::Schema {
 		# <p> xml parsing of new items
 		#
 		$xml = main::meta_get([$self->serverList($c)], "$c->{location}/database_raw.xml.bz2",
-			refetchAfter => $c->{refreshTvitems}, seq => 1)
+			refetchAfter => $c->{refreshTvitems}, seq => 0)
 			if (!defined($xml));
 		my $sep = ':_:';
 		my $cmd = 'cat '. qs($xml). ' | '
