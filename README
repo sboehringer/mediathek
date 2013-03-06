@@ -46,6 +46,18 @@ PATH=$PATH:$HOME/src/mediathek
 CRONTAB
 	crontab -l | cat - crontab.txt | crontab -
 
+== Usage ==
+
+Get help with
+
+	mediathek-worker.pl --help
+
+A typical scenario consists of conducting a search with
+
+	mediathek-worker.pl --search QUERY
+
+QUERY follows the pattern 'key1:value1;key2:value2' where values are SQL-like patterns and keys are channel, topic, title. For example, 'title:%tagesschau%' searches for titles containing 'tagesschau'. Once a search returns proper results, '--fetch' can be used to download programs. '--addsearch' adds a search permanently causing prgrams to be downloaded for every ensuing '--autofetch' call. Once a download completes files can be moved or deleted. They are not re-fetched by subsequent auto-fetches. Incomplete downloads are resumed in the next auto-fetch run.
+
 == Power of Perl ==
 
 This project is implemented in just 350 lines of Perl code including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), please let me know. One disadvantage of this implementation is that it is slow owing to the Moose part.
