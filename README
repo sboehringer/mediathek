@@ -56,7 +56,7 @@ A typical scenario consists of conducting a search with
 
 	mediathek-worker.pl --search QUERY
 
-QUERY follows the pattern 'key1:value1;key2:value2' where values are SQL-like patterns and keys are channel, topic, title. For example, 'title:%tagesschau%' searches for titles containing 'tagesschau'. Once a search returns proper results, '--fetch' can be used to download programs. '--addsearch' adds a search permanently causing prgrams to be downloaded for every ensuing '--autofetch' call. Once a download completes files can be moved or deleted. They are not re-fetched by subsequent auto-fetches. Incomplete downloads are resumed in the next auto-fetch run.
+QUERY follows the pattern 'key1:value1;key2:value2' where values are SQL-like patterns and keys are channel, topic, title. For example, 'title:%tagesschau%' searches for titles containing 'tagesschau'. Once a search returns proper results, '--fetch' can be used to download programs. '--addsearch' adds a search permanently causing programs to be downloaded for every ensuing '--autofetch' call. Once a download completes files can be moved or deleted. They are not re-fetched by subsequent auto-fetches. Incomplete downloads are resumed in the next auto-fetch run.
 
 == Power of Perl ==
 
