@@ -24,6 +24,7 @@ $main::d = {
 	search => \&search_db,
 	addsearch => \&add_search,
 	deletesearch => \&delete_search,
+	updatesearch => \&update_search,
 	autofetch => \&auto_fetch_db,
 	fetch => \&fetch_from_db,
 	prune => \&prune_db,
@@ -38,9 +39,10 @@ $main::d = {
 };
 # options
 $main::o = [
+	'destination=s'
 ];
 $main::usage = '';
-$main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
+$main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --createdb
 	mediathek-worker.pl --updatedb
 	mediathek-worker.pl --search query1 query2 ...
@@ -51,7 +53,8 @@ $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 
 	Examples:
 	# and
-	mediathek-worker.pl --addsearch 'topic:Tatort;channel:ARD;title:!Vorschau%'
+	mediathek-worker.pl --addsearch 'topic:Tatort;channel:ARD;title:!Vorschau%' \
+		--destination Tatort
 	mediathek-worker.pl --addsearch 'channel:ARTE%;title:360%'
 	mediathek-worker.pl --addsearch 'channel:ARTE.DE;title:Reiseporträts'
 	# or
@@ -62,6 +65,8 @@ $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --addsearch
 	# delete search
 	mediathek-worker.pl --deletesearch 1
+	# update download destination
+	mediathek-worker.pl --updatesearch 1 --destination Sandmännchen
 
 	Debugging functions:
 	mediathek-worker.pl --dump
@@ -86,6 +91,8 @@ my $sqlitedb = <<DBSCHEMA;
 	CREATE TABLE tv_grep (
 		id integer primary key autoincrement,
 		expression text not null,
+		destination text,
+		-- ALTER TABLE tv_grep ADD COLUMN destination text;
 		UNIQUE(expression)
 	);
 	CREATE TABLE tv_recording (
@@ -186,9 +193,10 @@ sub update_db { my ($c, $xml) = @_;
 %main::TvGrepDesc = ( parameters => { width => 79 },
 	columns => {
 		id => { width => 4, format => '%*s' },
-		expression => { width => -70, format => '%*s' }
+		expression => { width => -60, format => '%*s' },
+		destination => { width => -10, format => '%*s' },
 	},
-	print => ['id', 'expression']
+	print => ['id', 'expression', 'destination' ]
 );
 
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
@@ -205,11 +213,15 @@ sub fetch_from_db { my ($c, @queries) = @_;
 }
 
 sub add_search { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search(@queries);
+	my @searches = load_db($c)->add_search([@queries], $c->{destination});
 	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
-	my @searches = load_db($c)->delete_search(@ids);
+	my @searches = load_db($c)->delete_search([@ids]);
+	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
+}
+sub update_search { my ($c, @ids) = @_;
+	my @searches = load_db($c)->update_search([@ids], , $c->{destination});
 	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
 }
 

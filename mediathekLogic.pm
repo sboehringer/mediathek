@@ -106,15 +106,25 @@ class My::Schema {
 		Log(sprintf('Added %d items.', $icnt), 3);
 	}
 
-	method add_search(@queries) {
+	method add_search($queries, $destination) {
 		my $query = $self->resultset('TvGrep');
-		for my $q (@queries) { $query->create({expression => $q}); }
+		for my $q (@$queries) { $query->create(
+			{expression => $q, destination => $destination}
+		); }
 		return $query->all;
 	}
 
-	method delete_search(@ids) {
+	method delete_search($ids) {
 		my $query = $self->resultset('TvGrep');
-		for my $id (@ids) { $query->search({id => $id})->delete(); }
+		for my $id (@$ids) { $query->search({id => $id})->delete(); }
+		return $query->all;
+	}
+
+	method update_search($ids, $destination) {
+		my $query = $self->resultset('TvGrep');
+		for my $id (@$ids) { 
+			$query->search({id => $id})->update({ destination => $destination });
+		}
 		return $query->all;
 	}
 
@@ -141,17 +151,17 @@ class My::Schema {
 	}
 
 	method auto_fetch(Str $destination) {
-		my @queries = map { $_->expression } $self->resultset('TvGrep')->all;
-		my @r = $self->search(@queries);
-		for my $r (@r) {
-			my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
-				{ key => 'recording_unique' });
-			if (!$record->in_storage()) {
-				my $ret = $r->fetchTo($destination);
-				$record->insert() if (!$ret);
-				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
-			} else {
-				Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
+		for my $q ( ($self->resultset('TvGrep')->all) ) {
+			for my $r ( ($self->search($q->expression)) ) {
+				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
+					{ key => 'recording_unique' });
+				if (!$record->in_storage()) {
+					my $ret = $r->fetchTo($destination. '/'. $q->destination);
+					$record->insert() if (!$ret);
+					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
+				} else {
+					Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
+				}
 			}
 		}
 	}
