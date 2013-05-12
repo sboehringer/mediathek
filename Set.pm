@@ -7,7 +7,7 @@ require	Exporter;
 
 @ISA		= qw(Exporter);
 
-@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &firstDef &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces);
+@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &firstDef &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces &hashSlice &hashMin);
 
 use TempFileNames;
 
@@ -662,5 +662,14 @@ sub whichMax { my ($see, $numeric) = @_;
 	}
 	return $mxI;
 }
+
+sub hashSlice { my ($h, $keys) = @_;
+	return makeHash($keys, [@{$h}{@$keys}]);
+}
+sub hashMin { my ($h, $keys) = @_;
+	my $k = minus([keys %$h], $keys);
+	return makeHash($k, [@{$h}{$k}]);
+}
+
 
 1;

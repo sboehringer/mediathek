@@ -195,8 +195,8 @@ sub stringFromPropertyI { my($obj, $ident, $flags)=@_;
 		$str .= $array;
 	} elsif ( ref($obj) eq 'HASH' )
 	{	my $hash = "{";
-		foreach $key (keys(%{$obj}))
-		{	next if (!defined($obj->{$key}));
+		foreach $key (sort keys(%{$obj})) {
+			next if (!defined($obj->{$key}));
 			$hash .= "\n".$in_1 if (!$flags->{noFormatting});
 			$hash .= wrapString($key)." = ".
 				stringFromPropertyI($obj->{$key}, $ident+1, $flags).";";

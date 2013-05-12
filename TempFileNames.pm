@@ -9,6 +9,7 @@ require Exporter;
 
 #use lib '/LocalDeveloper/Libraries/perl5';
 use Encode;
+use utf8;
 use File::Copy;
 use File::Path;
 use IO::Handle;
