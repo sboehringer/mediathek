@@ -48,7 +48,9 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --search query1 query2 ...
 	mediathek-worker.pl --fetch query1 query2 ...
 	mediathek-worker.pl --addsearch query1 query2 ...
+	mediathek-worker.pl --addsearch query1 query2 ... --destination destFolder
 	mediathek-worker.pl --deletesearch id1 ...
+	mediathek-worker.pl --updateearch id1 ... --destination destFolder
 	mediathek-worker.pl --autofetch
 
 	Examples:
@@ -193,8 +195,8 @@ sub update_db { my ($c, $xml) = @_;
 %main::TvGrepDesc = ( parameters => { width => 79 },
 	columns => {
 		id => { width => 4, format => '%*s' },
-		expression => { width => -60, format => '%*s' },
-		destination => { width => -10, format => '%*s' },
+		expression => { width => -55, format => '%*s' },
+		destination => { width => -15, format => '%*s' },
 	},
 	print => ['id', 'expression', 'destination' ]
 );
