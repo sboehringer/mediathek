@@ -195,8 +195,8 @@ sub update_db { my ($c, $xml) = @_;
 %main::TvGrepDesc = ( parameters => { width => 79 },
 	columns => {
 		id => { width => 4, format => '%*s' },
-		expression => { width => -55, format => '%*s' },
-		destination => { width => -15, format => '%*s' },
+		expression => { width => -50, format => '%*s' },
+		destination => { width => -20, format => '%*s' },
 	},
 	print => ['id', 'expression', 'destination' ]
 );
