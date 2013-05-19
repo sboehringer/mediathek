@@ -32,16 +32,18 @@ class My::Schema {
 
 	method serverList($c) {
 		# today, yesterday
-		my ($td, $yd) = (
-			strftime("%d_%m", localtime(time())), strftime("%d_%m", localtime(time() - 86400))
-		);
+		#my ($td, $yd) = (
+		#	strftime("%d_%m", localtime(time())), strftime("%d_%m", localtime(time() - 86400))
+		#);
 		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
 			refetchAfter => $c->{refreshServers});
 		# seperate scanning due to faulty XML
-		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
+		#my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
+		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n";
 		# assume serverList is ordered according to date
 		Log('SeverList fetch: '. $servers, 5);
-		my @serverList = split(/\n/, `$servers`);
+		# assume newest last <!>
+		my @serverList = reverse(split(/\n/, `$servers`));
 		#my $dates = "cat $serverList | xml sel -T -t -m //Datum -v . -n";
 		#my @dates = split(/\n/, `$dates`);
 		#@serverList = sort {  } @serverList;
@@ -56,7 +58,7 @@ class My::Schema {
 		# <p> xml parsing of new items
 		#
 		$xml = main::meta_get([$self->serverList($c)], "$c->{location}/database_raw.xml.bz2",
-			refetchAfter => $c->{refreshTvitems}, seq => 0)
+			refetchAfter => $c->{refreshTvitems}, seq => 1)
 			if (!defined($xml));
 		my $sep = ':_:';
 		my $cmd = 'cat '. qs($xml). ' | '
