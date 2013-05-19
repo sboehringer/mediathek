@@ -31,11 +31,14 @@ class My::Schema {
 	}
 
 	method serverList($c) {
-		my $today = strftime("%m_%d", localtime(time()));
+		# today, yesterday
+		my ($td, $yd) = (
+			strftime("%d_%m", localtime(time())), strftime("%d_%m", localtime(time() - 86400))
+		);
 		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
 			refetchAfter => $c->{refreshServers});
 		# seperate scanning due to faulty XML
-		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep _$today.bz2";
+		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
 		# assume serverList is ordered according to date
 		Log('SeverList fetch: '. $servers, 5);
 		my @serverList = split(/\n/, `$servers`);
