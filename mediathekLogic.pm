@@ -37,6 +37,7 @@ class My::Schema {
 		# seperate scanning due to faulty XML
 		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep _$today.bz2";
 		# assume serverList is ordered according to date
+		Log('SeverList fetch: '. $cmd, 5);
 		my @serverList = split(/\n/, `$servers`);
 		#my $dates = "cat $serverList | xml sel -T -t -m //Datum -v . -n";
 		#my @dates = split(/\n/, `$dates`);
