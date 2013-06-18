@@ -159,6 +159,10 @@ class My::Schema {
 	}
 
 	method auto_fetch(Str $destination) {
+		if (!-e $destination) {
+			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
+			return;
+		}
 		for my $q ( ($self->resultset('TvGrep')->all) ) {
 			for my $r ( ($self->search($q->expression)) ) {
 				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
