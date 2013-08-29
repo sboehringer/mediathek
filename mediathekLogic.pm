@@ -209,7 +209,7 @@ class My::Schema::Result::TvItem {
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
 
-		return System($self->commandWihtOutput($destPath), 2);
+		return System($self->commandWithOutput($destPath), 2);
 	}
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
