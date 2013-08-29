@@ -202,7 +202,7 @@ class My::Schema::Result::TvItem {
 		http => 'mplayer URL -dumpstream -dumpfile OUTPUT'
 	);
 	method commandWithOutput(Str $destPath) {
-		my ($protocol) = ($self->url() =~ m{^([^:]+://}sog);
+		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
 		my $command = mergeDictToString({
 			URL => $self->url,
 			OUTPUT => qs($destPath)
