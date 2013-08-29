@@ -27,13 +27,15 @@ This project is meant to be small enough to run on a Raspberry Pi. A typical wor
 	sudo aptitude install xmlstarlet
   + flvstreamer
 	sudo aptitude install flvstreamer
+  + mplayer
+	sudo aptitude install mplayer
   + Perl DBIx
 	sudo aptitude install libdbi-perl libdbix-class-schema-loader-perl
   + Perl Moose
 	sudo aptitude install libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
 
 In one go:
-	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl bzip2 xmlstarlet flvstreamer libdbi-perl libdbix-class-schema-loader-perl libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
+	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl bzip2 xmlstarlet flvstreamer libdbi-perl libdbix-class-schema-loader-perl libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl mplayer
 
 Install into ~/src
 	# assume ~/bin exists and is in $PATH

@@ -185,16 +185,32 @@ class My::Schema::Result::TvItem {
 	use utf8;
 
 	# default format: day_title
-	method fetchTo(Str $dest, Str $fmt = '%D_%T.flv') {
+	method fetchTo(Str $dest, Str $fmt = '%D_%T.%E') {
 		my $destPath = $dest. '/'. mergeDictToString({
 			'%T' => $self->title,
-			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d')
+			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
+			'%E' => splitPathDict($self->url)->{extension}
 		}, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
-		my $command = $self->command();
-		$command = '-r '. $self->url() if (length($command) < 16);
-		return System('flvstreamer --resume '. $command. ' -o '. qs($destPath), 2);
+
+		return System($self->commandWihtOutput($destPath), 2);
 	}
-  __PACKAGE__->meta->make_immutable(inline_constructor => 0);
+
+	my %templates = (
+		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
+		http => 'mplayer URL -dumpstream -dumpfile OUTPUT'
+	);
+	method commandWithOutput(Str $destPath) {
+		my ($protocol) = ($self->url() =~ m{^([^:]+://}sog);
+		my $command = mergeDictToString({
+			URL => $self->url,
+			OUTPUT => qs($destPath)
+		}, $templates{$protocol});
+		#my $command = $self->command();
+		#$command = '-r '. $self->url() if (length($command) < 16);
+		return $command;
+	}
+
+	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 }
