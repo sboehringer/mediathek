@@ -184,19 +184,6 @@ class My::Schema::Result::TvItem {
 	use Data::Dumper;
 	use utf8;
 
-	# default format: day_title
-	method fetchTo(Str $dest, Str $fmt = '%D_%T.%E') {
-		my $destPath = $dest. '/'. mergeDictToString({
-			'%T' => $self->title,
-			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
-			'%E' => splitPathDict($self->url)->{extension}
-		}, $fmt, { iterative => 'no' });
-		Log("Fetching ". $self->title. " to ". $destPath, 1);
-		Mkpath($dest, 5);
-
-		return System($self->commandWihtOutput($destPath), 2);
-	}
-
 	my %templates = (
 		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
 		http => 'mplayer URL -dumpstream -dumpfile OUTPUT'
@@ -210,6 +197,19 @@ class My::Schema::Result::TvItem {
 		#my $command = $self->command();
 		#$command = '-r '. $self->url() if (length($command) < 16);
 		return $command;
+	}
+
+	# default format: day_title
+	method fetchTo(Str $dest, Str $fmt = '%D_%T.%E') {
+		my $destPath = $dest. '/'. mergeDictToString({
+			'%T' => $self->title,
+			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
+			'%E' => splitPathDict($self->url)->{extension}
+		}, $fmt, { iterative => 'no' });
+		Log("Fetching ". $self->title. " to ". $destPath, 1);
+		Mkpath($dest, 5);
+
+		return System($self->commandWihtOutput($destPath), 2);
 	}
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
