@@ -37,17 +37,17 @@ class My::Schema {
 		#);
 		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
 			refetchAfter => $c->{refreshServers});
-		# seperate scanning due to faulty XML
 		#my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
-		my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n";
-		# assume serverList is ordered according to date
-		Log('SeverList fetch: '. $servers, 5);
-		# assume newest last <!>
-		my @serverList = reverse(split(/\n/, `$servers`));
-		#my $dates = "cat $serverList | xml sel -T -t -m //Datum -v . -n";
-		#my @dates = split(/\n/, `$dates`);
-		#@serverList = sort {  } @serverList;
-		Log('Serverlist: '. join(':', @serverList), 5);
+		my @serverList = split(/\n/, `cat $serverList | xml sel -T -t -m //URL -v . -n`);
+		Log('SeverList fetch: '. join("\n", @serverList), 5);
+		# <b> seperate scanning due to faulty XML
+		my @date = split(/\n/, `cat $serverList | xml sel -T -t -m //Datum -v . -n`);
+		my @time = split(/\n/, `cat $serverList | xml sel -T -t -m //Zeit -v . -n`);
+		# determine order by decreasing time
+		my @order = sort { $date[$b] cmp $date[$a] || $time[$b] cmp $time[$a] } 0 .. $#serverList;
+		Log('Serverorder: '. join(' ', @order), 5);
+		@serverList = @serverList[@order];
+		Log('Serverlist (ordered): '. join("\n", @serverList), 5);
 		return @serverList;
 	}
 
