@@ -53,15 +53,11 @@ class My::Schema {
 		return @serverList;
 	}
 
-	# <A> no proper quoting of csv output
-	method update($c, $xml) {
-		$self->prune($c->{keepForDays});
+	method updateWithXml($c, $xml) {
 		#
 		# <p> xml parsing of new items
 		#
-		$xml = main::meta_get([$self->serverList($c)], "$c->{location}/database_raw.xml.bz2",
-			refetchAfter => $c->{refreshTvitems}, seq => 1)
-			if (!defined($xml));
+		$self->prune($c->{keepForDays});
 		my $sep = ':_:';
 		my $cmd = 'cat '. qs($xml). ' | '
 			.'bzcat | perl -pe "tr/\n/ /" | xml sel -T -t -m //X'
@@ -114,6 +110,19 @@ class My::Schema {
 		}
 		$fh->close();
 		Log(sprintf('Added %d items.', $icnt), 3);
+	}
+	# <A> no proper quoting of csv output
+	method update($c, $xml) {
+		if (defined($xml)) {
+			$self->updateWithXml($c, $xml);
+		} else {
+			my @serverList = $self->serverList($c);
+			for (my $i = 0; $i < $c->{refreshServersCount}; $i++) {
+				$xml = main::meta_get([$serverList[$i]], "$c->{location}/database_raw.xml_$i.bz2",
+					refetchAfter => $c->{refreshTvitems}, seq => 1);
+				$self->updateWithXml($c, $xml);
+			}
+		}
 	}
 
 	method add_search($queries, $destination) {
