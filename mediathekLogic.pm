@@ -43,8 +43,10 @@ class My::Schema {
 		# <b> seperate scanning due to faulty XML
 		my @date = split(/\n/, `cat $serverList | xml sel -T -t -m //Datum -v . -n`);
 		my @time = split(/\n/, `cat $serverList | xml sel -T -t -m //Zeit -v . -n`);
+		my @prio = split(/\n/, `cat $serverList | xml sel -T -t -m //Prio -v . -n`);
 		# determine order by decreasing time
-		my @order = sort { $date[$b] cmp $date[$a] || $time[$b] cmp $time[$a] } 0 .. $#serverList;
+		my @order = sort { $prio[$b] <=> $prio[$a]
+			|| $date[$b] cmp $date[$a] || $time[$b] cmp $time[$a] } 0 .. $#serverList;
 		Log('Serverorder: '. join(' ', @order), 5);
 		@serverList = @serverList[@order];
 		Log('Serverlist (ordered): '. join("\n", @serverList), 5);
