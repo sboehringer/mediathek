@@ -117,7 +117,7 @@ class My::Schema {
 			$self->updateWithXml($c, $xml);
 		} else {
 			my @serverList = $self->serverList($c);
-			$self->updateWithXml($c, main::meta_get([$serverList[$i]], "$c->{location}/database_raw.xml_$i.bz2",
+			$self->updateWithXml($c, main::meta_get([$serverList[$i]], "$c->{location}/database_raw.xml.bz2",
 					refetchAfter => $c->{refreshTvitems}, seq => 1));
 			for (my $i = 0; $i < $c->{refreshServersCount}; $i++) {
 				$xml = main::meta_get([@serverList], "$c->{location}/database_raw.xml_$i.bz2",
