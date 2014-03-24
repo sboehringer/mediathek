@@ -208,7 +208,7 @@ sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 
 sub search_db { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
-	print(formatTable(\%TvTableDesc, \@r). "\n");
+	print(formatTable(firstDef($c->{itemTableFormatting}, \%TvTableDesc), \@r). "\n");
 }
 
 sub fetch_from_db { my ($c, @queries) = @_;
@@ -217,15 +217,15 @@ sub fetch_from_db { my ($c, @queries) = @_;
 
 sub add_search { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination});
-	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
 	my @searches = load_db($c)->delete_search([@ids]);
-	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 sub update_search { my ($c, @ids) = @_;
 	my @searches = load_db($c)->update_search([@ids], , $c->{destination});
-	print(formatTable(\%TvGrepDesc, [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 
 sub auto_fetch_db { my ($c) = @_;
