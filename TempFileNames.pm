@@ -3,7 +3,7 @@ require 5.000;
 require Exporter;
 
 @ISA       = qw(Exporter);
-@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &formatTableComponents &formatTable);
+@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &formatTableComponents &formatTable);
 
 #@EXPORT_OK = qw($sally @listabob %harry func3);
 
@@ -472,6 +472,12 @@ sub findDir { my ($path, $returnDirs) = @_;
 	return $l;
 }
 
+my @StatComps = ('dev', 'ino', 'mode' , 'nlink', 'uid', 'gid', 'rdev',
+	'size', 'atime', 'mtime', 'ctime', 'blksize', 'blocks');
+sub Stat { my ($path) = @_;
+	return makeHash(\@StatComps, [stat($path)]);
+}
+
 sub statDict { my ($path) = @_;
 	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
 		$atime,$mtime,$ctime,$blksize,$blocks) = stat($path);
@@ -623,9 +629,17 @@ sub dirList { my($path, $host) = @_;
 }
 sub dirListPattern { my ($prefix, $postfix, $o) = @_;
 	my $sp = splitPathDict($prefix);
-	my @files = dirList(firstDef($sp->{dir}, "."), defined($o)? $o->{host}: undef);
-	@files = grep { /^$sp->{file}.*$postfix$/ } @files;
+	my @files;
+	if ($o->{recursive}) {
+		my $r = System('find '. qs($sp->{dir}), 5, undef, { returnStdout => 'YES' });
+		@files = map { substr($_, length($sp->{dir})) } split(/\n/, $r->{output});
+	} else {
+		@files = dirList(firstDef($o->{asDir}? $prefix: $sp->{dir}, '.'),
+			defined($o)? $o->{host}: undef);
+	}
+	@files = grep { /^$sp->{file}.*($postfix)$/ } @files;
 	@files = map { "$sp->{dir}/$_" } @files if (uc($o->{returnDir}) eq 'YES');
+	@files = sort { $a cmp $b } @files if ($o->{sort});
 	return @files;
 }
 sub fileList { my ($prefix, $o) = @_;
@@ -686,7 +700,6 @@ sub relativePath { my($absCurr, $absDest, $sep, $ignoreCase)=@_;
 	$app=(((chop($curD) eq $sep) && ($#dest-$i>=0))? $sep: '');
 	return "..$sep" x ($#curr-$i).join($sep,splice(@dest,$i)).$app;
 }
-
 sub quoteRegex { return join('\\',split(/(?=\.|\?|\=|\*|\\)/,$_[0])); }
 
 sub redirectInOut { my($saveName, $inPath, $outPath)=@_;
@@ -1016,7 +1029,7 @@ sub StartStandardScript { my ($defaults, $options, %sso) = @_;
 	$c = readConfigFile($o->{config}, { default => {} }) if (defined($o->{config}));
 	my $cred = undef;
 	if (defined($o->{credentials})) {
-		eval('use KeyRing');
+		load('KeyRing');
 		$cred = KeyRing->new()->handleCredentials($o->{credentials},
 			'.this_cookie.'. $programName) || exit(0)
 	}
@@ -1055,11 +1068,11 @@ sub splitPath { my ($path, $doTestDir, $fileNameToSubstitue)=@_;
 #	dirComponents:	an array of the dirs leading to the file
 #	isRelative:	does not start with '/'
 
-sub splitPathDict { my ($path, $doTestDir, $fileNameToSubstitue)=@_;
+sub splitPathDict { my ($path, $doTestDir, $fileNameToSubstitue, %c)=@_;
 	my ($user, $host, $pathN);
 	$path = $pathN
-		if (($user, $host, $pathN)
-		= ($path =~ m{^(?:(\w+)\@)?(?:(\w+):)(.*)}goi));
+		if ((($user, $host, $pathN)
+		= ($path =~ m{^(?:(\w+)\@)?(?:(\w+):)(.*)}goi)) && $c{testRemote});
 	my ($directory, $filename, $ext) = splitPath($path, $doTestDir, $fileNameToSubstitue);
 	my $base = defined($ext)? substr($filename, 0, - length($ext) - 1): $filename;
 	my $dirPrefix = defined($directory)? ($directory eq '/'? '/': "$directory/"): '';

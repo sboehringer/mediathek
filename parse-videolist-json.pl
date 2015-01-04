@@ -11,7 +11,7 @@ use TempFileNames;
 use Set;
 
 # default options
-$main::d = { triggerPrefix => '', sep => '::__::' };
+$main::d = { triggerPrefix => '', sep => ':*_*:', parse => '-' };
 # options
 $main::o = [ '+parse=s', 'sep=s' ];
 $main::usage = '';

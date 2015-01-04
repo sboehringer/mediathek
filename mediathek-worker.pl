@@ -31,7 +31,7 @@ $main::d = {
 	dumpschema => \&dump_schema,
 	serverlist => \&serverList,
 	location => "$ENV{HOME}/.local/share/applications/mediathek",
-	serverUrl => 'http://zdfmediathk.sourceforge.net/update.xml',
+	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
 	videolibrary => "$ENV{HOME}/Videos/Mediathek",
 	keepForDays => 10,
 	refreshServers => 0,
@@ -85,7 +85,7 @@ my $sqlitedb = <<DBSCHEMA;
 		title text not null,
 		date date not null,
 		url text,
-		command text,
+		duration integer,
 		UNIQUE(channel, date, title)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);

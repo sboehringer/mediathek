@@ -10,7 +10,7 @@ class My::Schema {
 	use TempFileNames;
 	use Set;
 	use Data::Dumper;
-	use POSIX qw(strftime mktime);
+	use POSIX qw(strftime mktime ceil);
 	use POSIX::strptime qw(strptime);
 	use utf8;
 
@@ -40,36 +40,25 @@ class My::Schema {
 		#my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
 		my @serverList = split(/\n/, `cat $serverList | xml sel -T -t -m //URL -v . -n`);
 		Log('SeverList fetch: '. join("\n", @serverList), 5);
-		# <b> seperate scanning due to faulty XML
-		my @date = split(/\n/, `cat $serverList | xml sel -T -t -m //Datum -v . -n`);
-		my @time = split(/\n/, `cat $serverList | xml sel -T -t -m //Zeit -v . -n`);
-		my @prio = split(/\n/, `cat $serverList | xml sel -T -t -m //Prio -v . -n`);
-		# determine order by decreasing time
-		my @order = sort { $prio[$b] <=> $prio[$a]
-			|| $date[$b] cmp $date[$a] || $time[$b] cmp $time[$a] } 0 .. $#serverList;
-		Log('Serverorder: '. join(' ', @order), 5);
-		@serverList = @serverList[@order];
-		Log('Serverlist (ordered): '. join("\n", @serverList), 5);
 		return @serverList;
 	}
 
-	method updateWithXml($c, $xml) {
+	method updateWithJson($c, $path) {
 		#
 		# <p> xml parsing of new items
 		#
 		$self->prune($c->{keepForDays});
-		my $sep = ':_:';
-		my $cmd = 'cat '. qs($xml). ' | '
-			.'bzcat | perl -pe "tr/\n/ /" | xml sel -T -t -m //X'
-			." -v ./b -o $sep -v ./c -o $sep -v ./d -o $sep -v ./e -o $sep -v ./f -o $sep -v ./g -o $sep -v ./i -n";
+		my $sep = ':*_*:';	# as of parse-videolist-json.pl
+		my $cmd = 'xzcat '. qs($path). ' | '. 'parse-videolist-json.pl --parse -';
 		#
 		# <p> database update
 		#
-		my @keys = ('channel', 'topic', 'title', 'day', 'time', 'url', 'command');
-		my @dbkeys = ('channel', 'topic', 'title', 'date', 'url', 'command');
+		# keys as of parse-videolist-json
+		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'dauer', 'url_hd', 'url' );
+		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url');
 		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
-		die "couldn't read '$xml'" if (!defined($fh));
+		die "couldn't read '$path'" if (!defined($fh));
 		my @lines = map { substr($_, 0, -1) } (<$fh>);
 		my $prev = {};
 		my $i = 0;
@@ -92,6 +81,7 @@ class My::Schema {
 			next if ($this->{date} eq ''
 				|| $now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
 				> $c->{keepForDays} * 86400);
+			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))));
 
 			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
 			#print 'exists: '. @items. "\n";

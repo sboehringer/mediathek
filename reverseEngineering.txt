@@ -4,3 +4,4 @@
 xzcat Filmliste-akt.xz > Filmliste-akt.json
 cat Filmliste-akt.json | perl -MData::Dumper -MJSON::Util -e 'my @d = <STDIN>; print Dumper(JSON::Util->decode(join("\n", @d)))'
 cat Filmliste-akt.json | perl -ne 'next if (!/^\s*"X"\s*:\s*\[(.*)\]/); print "$1\n"'
+wget http://zdfmediathk.sourceforge.net/update-json.xml
