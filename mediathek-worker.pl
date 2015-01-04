@@ -35,7 +35,7 @@ $main::d = {
 	videolibrary => "$ENV{HOME}/Videos/Mediathek",
 	keepForDays => 10,
 	refreshServers => 0,
-	refreshServersCount => 2,
+	refreshServersCount => 1,
 	refreshTvitems => 0,
 };
 # options

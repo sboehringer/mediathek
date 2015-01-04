@@ -11,7 +11,7 @@ use TempFileNames;
 use Set;
 
 # default options
-$main::d = { triggerPrefix => '', sep => ':*_*:', parse => '-' };
+$main::d = { triggerPrefix => '', sep => ':<>:', parse => '-' };
 # options
 $main::o = [ '+parse=s', 'sep=s' ];
 $main::usage = '';
@@ -30,7 +30,7 @@ sub extractString {
 	dequoteBackslash(join('', $_[0] =~ m{$stringRE}so))
 }
 sub jsonArray { my ($s) = @_;
-		my @cols = map { extractString($_) } ($s =~ m{(?:($stringREraw)(?:\s*,\s*)?)}sog);
+	my @cols = map { extractString($_) } ($s =~ m{(?:($stringREraw)(?:\s*,\s*)?)}sog);
 }
 
 my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url_HD", "Url" );

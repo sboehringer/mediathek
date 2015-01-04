@@ -48,8 +48,8 @@ class My::Schema {
 		# <p> xml parsing of new items
 		#
 		$self->prune($c->{keepForDays});
-		my $sep = ':*_*:';	# as of parse-videolist-json.pl
-		my $cmd = 'xzcat '. qs($path). ' | '. 'parse-videolist-json.pl --parse -';
+		my $sep = ':<>:';	# as of parse-videolist-json.pl
+		my $cmd = 'xzcat '. qs($path). ' | '. './parse-videolist-json.pl --parse -';
 		#
 		# <p> database update
 		#
@@ -59,12 +59,12 @@ class My::Schema {
 		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
-		my @lines = map { substr($_, 0, -1) } (<$fh>);
 		my $prev = {};
 		my $i = 0;
 		my $icnt = 0;	# insert count
 		my $now = time();
-		for my $l (@lines) {
+		while (my $l = <$fh>) {
+			$l = substr($l, 0, -1);
 			my $tv = $self->resultset('TvItem');
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
@@ -76,12 +76,15 @@ class My::Schema {
 			$this->{topic} = $prev->{topic} if ($this->{topic} eq '');
 			$prev = $this;
 			# <p> skip bogus entries
-			next if ($this->{day} eq '' || $this->{time} eq '');
+			next if (!defined($this->{day}) || $this->{day} eq '' || $this->{time} eq '');
 			$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
-			next if ($this->{date} eq ''
-				|| $now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S"))
-				> $c->{keepForDays} * 86400);
-			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))));
+			next if (!defined($this->{date})
+				|| $this->{date} eq ''
+				|| ($now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S")))
+					> $c->{keepForDays} * 86400);
+			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
+				if (defined($this->{duration}));
+			$this->{url} = firstTrue($this->{url_hd}, $this->{url});
 
 			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
 			#print 'exists: '. @items. "\n";
@@ -104,16 +107,16 @@ class My::Schema {
 	# <A> no proper quoting of csv output
 	method update($c, $xml) {
 		if (defined($xml)) {
-			$self->updateWithXml($c, $xml);
+			$self->updateWithJson($c, $xml);
 		} else {
 			my @serverList = $self->serverList($c);
-			$self->updateWithXml($c, main::meta_get([$serverList[0]],
-				"$c->{location}/database_raw.xml.bz2",
-					refetchAfter => $c->{refreshTvitems}, seq => 1));
+			$self->updateWithJson($c, main::meta_get([$serverList[0]],
+				"$c->{location}/database-json.xz",
+					refetchAfter => $c->{refreshTvitems}, seq => 0));
 			for (my $i = 0; $i < $c->{refreshServersCount}; $i++) {
-				$xml = main::meta_get([@serverList], "$c->{location}/database_raw.xml_$i.bz2",
+				$xml = main::meta_get([@serverList], "$c->{location}/database-json-$i.xz",
 					refetchAfter => $c->{refreshTvitems}, seq => 0);
-				$self->updateWithXml($c, $xml);
+				$self->updateWithJson($c, $xml);
 			}
 		}
 	}
