@@ -39,10 +39,12 @@ In one go:
 
 Install into ~/src
 	# assume ~/bin exists and is in $PATH
+	# you may add the following line to ~/.bashrc
+	# export PATH=$HOME/bin:$PATH
 	( cd ~ ; mkdir --parent src MyLibrary/Configs .local/share/applications/mediathek ; ln -s `which xmlstarlet` ~/bin/xml ; cd src ; git clone git://github.com/sboehringer/mediathek.git )
 	# install crontab
 	cd ~/src/mediathek ; cat > crontab.txt <<CRONTAB
-PERL5LIB=$PERL5LIB:$HOME/src/mediathek
+PERL5LIB=$PERL5LIB:$HOME/src/mediathek:$HOME/bin
 PATH=$PATH:$HOME/src/mediathek
 0 4 * * *    $HOME/src/mediathek/mediathek-worker.pl --updatedb ; $HOME/src/mediathek/mediathek-worker.pl --autofetch
 CRONTAB

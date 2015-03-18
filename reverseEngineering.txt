@@ -5,3 +5,11 @@ xzcat Filmliste-akt.xz > Filmliste-akt.json
 cat Filmliste-akt.json | perl -MData::Dumper -MJSON::Util -e 'my @d = <STDIN>; print Dumper(JSON::Util->decode(join("\n", @d)))'
 cat Filmliste-akt.json | perl -ne 'next if (!/^\s*"X"\s*:\s*\[(.*)\]/); print "$1\n"'
 wget http://zdfmediathk.sourceforge.net/update-json.xml
+
+
+#
+#	URL fetching feature
+#
+wget -qO- http://www.arte.tv/guide/de/044101-000/360-geo-reportage | tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | xml sel -T -t -m //_:div[@class='col-xs-12']/_:h2/_:section -v .
+# works
+wget -qO- http://www.arte.tv/guide/de/044101-000/360-geo-reportage | tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | xml sel -T -t -m '//_:h2[@class="text-thin mb-20"]' -v . -n
