@@ -149,6 +149,7 @@ class My::Schema {
 			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
 			my %query = map { my ($k, $v, $not) = ($_, $terms{$_});
 				($not, $v) = ($v =~ m{^([!]?)(.*)}sog);
+				$k = 'time(date)' if ($k eq 'time');
 				($k, { ($not? 'not like': 'like'), $v })
 			} keys %terms;
 			main::Log(main::Dumper(\%query), 5);
