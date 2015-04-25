@@ -40,7 +40,7 @@ $main::d = {
 };
 # options
 $main::o = [
-	'destination=s'
+	'destination=s', 'urlextract=s'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -53,6 +53,9 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --deletesearch id1 ...
 	mediathek-worker.pl --updateearch id1 ... --destination destFolder
 	mediathek-worker.pl --autofetch
+	# urlextract option allows to fetch additional annotation from the movie url
+	#	to be added to the file name. Extraction is done using an XPath exprssion
+	mediathek-worker.pl --fetch query1 --urlextract XPath-expression
 
 	Examples:
 	# and
@@ -70,6 +73,8 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --deletesearch 1
 	# update download destination
 	mediathek-worker.pl --updatesearch 1 --destination Sandmännchen
+	# fetch name from show homepage and add to file name
+	mediathek-worker.pl --fetch --urlextract '//_:h2[@class="text-thin mb-20"]' 
 
 	Debugging functions:
 	mediathek-worker.pl --dump
@@ -86,6 +91,7 @@ my $sqlitedb = <<DBSCHEMA;
 		date date not null,
 		url text,
 		duration integer,
+		homepage text,
 		UNIQUE(channel, date, title)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
@@ -212,7 +218,7 @@ sub search_db { my ($c, @queries) = @_;
 }
 
 sub fetch_from_db { my ($c, @queries) = @_;
-	load_db($c)->fetch($c->{videolibrary}, @queries);
+	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract});
 }
 
 sub add_search { my ($c, @queries) = @_;

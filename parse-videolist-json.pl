@@ -33,7 +33,7 @@ sub jsonArray { my ($s) = @_;
 	my @cols = map { extractString($_) } ($s =~ m{(?:($stringREraw)(?:\s*,\s*)?)}sog);
 }
 
-my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url_HD", "Url" );
+my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url_HD", "Url", "Website" );
 sub parse { my ($o) = @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
 	die "could not open:$o->{parse}" if (!defined($fh));

@@ -54,8 +54,8 @@ class My::Schema {
 		# <p> database update
 		#
 		# keys as of parse-videolist-json
-		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'dauer', 'url_hd', 'url' );
-		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url');
+		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'dauer', 'url_hd', 'url', 'homepage' );
+		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
 		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
@@ -84,7 +84,11 @@ class My::Schema {
 					> $c->{keepForDays} * 86400);
 			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
 				if (defined($this->{duration}));
-			$this->{url} = firstTrue($this->{url_hd}, $this->{url});
+			# <!> url_hd interpretation unclear
+			#if ($this->{url_hd} ne '') {
+			#	# url_hd only contains 
+			#	$this->{url} = firstTrue($this->{url_hd}, $this->{url});
+			#}
 
 			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
 			#print 'exists: '. @items. "\n";
@@ -166,6 +170,13 @@ class My::Schema {
 		}
 	}
 
+	method fetchSingle(Str $destination, Str $query, Str $urlextract) {
+		my @r = $self->search( ($query) );
+		for my $r (@r) {
+			$r->fetchTo($destination, $urlextract);
+		}
+	}
+
 	method auto_fetch(Str $destination) {
 		if (!-e $destination) {
 			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
@@ -197,6 +208,7 @@ class My::Schema::Result::TvItem {
 		http => 'mplayer URL -dumpstream -dumpfile OUTPUT'
 	);
 	method commandWithOutput(Str $destPath) {
+		Log("URL: ". $self->url(), 2);
 		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
 		my $command = mergeDictToString({
 			URL => $self->url,
@@ -207,12 +219,25 @@ class My::Schema::Result::TvItem {
 		return $command;
 	}
 
+	method annotation(Str $xpath = '') {
+		my $urlq = main::qs($self->homepage());
+		my $xpathq = main::qs($xpath);
+		my $urlcmd = "wget -qO- $urlq | "
+			.'tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | '
+			."xml sel -T -t -m $xpathq -v . -n";
+		my $annotation = ($xpath ne '')? main::trimmStr(`$urlcmd`): '';
+		Log("Annotation command: $urlcmd", 2);
+		Log("Annotation: $annotation", 2);
+		return $annotation;
+	}
+
 	# default format: day_title
-	method fetchTo(Str $dest, Str $fmt = '%D_%T.%E') {
+	method fetchTo(Str $dest, Str $xpath = '', Str $fmt = '%D_%T%U.%E') {
 		my $destPath = $dest. '/'. mergeDictToString({
 			'%T' => $self->title,
 			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
-			'%E' => splitPathDict($self->url)->{extension}
+			'%E' => splitPathDict($self->url)->{extension},
+			'%U' => main::prefix($self->annotation($xpath), '_')
 		}, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);

@@ -3,7 +3,7 @@ require 5.000;
 require Exporter;
 
 @ISA       = qw(Exporter);
-@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &formatTableComponents &formatTable);
+@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &formatTableComponents &formatTable);
 
 #@EXPORT_OK = qw($sally @listabob %harry func3);
 
@@ -1204,6 +1204,9 @@ sub qw { $_[0] =~ s{"}{\\"}sog; $_[0] }
 sub qsB { $_[0] =~ s{\\}{\\\\}sog; return $_[0]; }
 sub qsQ { return qw(qsB($_[0])) }
 sub qs { my $p = qsB($_[0]); $p =~ s{'}{'\\''}sog; return "'$p'"; }
+sub prefix { my ($s, $prefix) = @_;
+	return $s eq ''? '': "$prefix$s";
+}
 
 #
 #	<p> table formatting
