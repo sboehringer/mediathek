@@ -125,10 +125,10 @@ class My::Schema {
 		}
 	}
 
-	method add_search($queries, $destination) {
+	method add_search($queries, $destination, $xpath) {
 		my $query = $self->resultset('TvGrep');
 		for my $q (@$queries) { $query->create(
-			{expression => $q, destination => $destination}
+			{expression => $q, destination => $destination, xpath => $xpath}
 		); }
 		return $query->all;
 	}
@@ -139,10 +139,12 @@ class My::Schema {
 		return $query->all;
 	}
 
-	method update_search($ids, $destination) {
+	method update_search($ids, Str $destination = '', Str $xpath = '') {
 		my $query = $self->resultset('TvGrep');
-		for my $id (@$ids) { 
-			$query->search({id => $id})->update({ destination => $destination });
+		for my $id (@$ids) {
+			my $u = { destination => $destination, xpath => $xpath };
+			$u = %{$u}{grep { ${$u}{$_} ne ''} keys %$u}
+			$query->search({id => $id})->update($u);
 		}
 		return $query->all;
 	}
@@ -177,7 +179,7 @@ class My::Schema {
 		}
 	}
 
-	method auto_fetch(Str $destination) {
+	method auto_fetch(Str $destination, $xpath) {
 		if (!-e $destination) {
 			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
 			return;

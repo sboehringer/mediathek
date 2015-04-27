@@ -101,6 +101,7 @@ my $sqlitedb = <<DBSCHEMA;
 		id integer primary key autoincrement,
 		expression text not null,
 		destination text,
+		xpath text,
 		-- ALTER TABLE tv_grep ADD COLUMN destination text;
 		UNIQUE(expression)
 	);
@@ -211,6 +212,9 @@ sub update_db { my ($c, $xml) = @_;
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 	return strftime($fmtOut, strptime($date, $fmtIn));
 }
+sub hashPrune { my (%h) = @_;
+	return %h{grep { $h{$_} ne ''} keys %h};
+}
 
 sub search_db { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
@@ -222,7 +226,7 @@ sub fetch_from_db { my ($c, @queries) = @_;
 }
 
 sub add_search { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search([@queries], $c->{destination});
+	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{xpath});
 	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
