@@ -125,10 +125,10 @@ class My::Schema {
 		}
 	}
 
-	method add_search($queries, $destination, $xpath) {
+	method add_search($queries, $destination = '', $xpath = '') {
 		my $query = $self->resultset('TvGrep');
 		for my $q (@$queries) { $query->create(
-			{expression => $q, destination => $destination, xpath => $xpath}
+			{ main::hashPrune(%{{expression => $q, destination => $destination, xpath => $xpath}}) }
 		); }
 		return $query->all;
 	}
@@ -139,12 +139,12 @@ class My::Schema {
 		return $query->all;
 	}
 
-	method update_search($ids, Str $destination = '', Str $xpath = '') {
+	method update_search($ids, $destination = '', $xpath = '') {
 		my $query = $self->resultset('TvGrep');
 		for my $id (@$ids) {
-			my $u = { destination => $destination, xpath => $xpath };
-			$u = %{$u}{grep { ${$u}{$_} ne ''} keys %$u}
-			$query->search({id => $id})->update($u);
+			$query->search({id => $id})->update(
+				{ main::hashPrune(%{{ destination => $destination, xpath => $xpath }}) }
+			);
 		}
 		return $query->all;
 	}
@@ -179,7 +179,7 @@ class My::Schema {
 		}
 	}
 
-	method auto_fetch(Str $destination, $xpath) {
+	method auto_fetch(Str $destination) {
 		if (!-e $destination) {
 			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
 			return;
@@ -189,7 +189,7 @@ class My::Schema {
 				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
 					{ key => 'recording_unique' });
 				if (!$record->in_storage()) {
-					my $ret = $r->fetchTo($destination. '/'. $q->destination);
+					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->xpath);
 					$record->insert() if (!$ret);
 					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 				} else {
@@ -221,7 +221,7 @@ class My::Schema::Result::TvItem {
 		return $command;
 	}
 
-	method annotation(Str $xpath = '') {
+	method annotation($xpath = '') {
 		my $urlq = main::qs($self->homepage());
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
@@ -234,7 +234,7 @@ class My::Schema::Result::TvItem {
 	}
 
 	# default format: day_title
-	method fetchTo(Str $dest, Str $xpath = '', Str $fmt = '%D_%T%U.%E') {
+	method fetchTo($dest, $xpath = '', $fmt = '%D_%T%U.%E') {
 		my $destPath = $dest. '/'. mergeDictToString({
 			'%T' => $self->title,
 			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),

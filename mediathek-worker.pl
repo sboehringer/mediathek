@@ -51,7 +51,7 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --addsearch query1 query2 ...
 	mediathek-worker.pl --addsearch query1 query2 ... --destination destFolder
 	mediathek-worker.pl --deletesearch id1 ...
-	mediathek-worker.pl --updateearch id1 ... --destination destFolder
+	mediathek-worker.pl --updatesearch id1 ... --destination destFolder
 	mediathek-worker.pl --autofetch
 	# urlextract option allows to fetch additional annotation from the movie url
 	#	to be added to the file name. Extraction is done using an XPath exprssion
@@ -75,6 +75,8 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --updatesearch 1 --destination Sandmännchen
 	# fetch name from show homepage and add to file name
 	mediathek-worker.pl --fetch --urlextract '//_:h2[@class="text-thin mb-20"]' 
+	# show homepage scraping for autofetches
+	mediathek-worker.pl --addsearch 'channel:ARTE%;title:360%;time:08:00:00' --destination Geo --urlextract '//_:h2[@class="text-thin mb-20"]'
 
 	Debugging functions:
 	mediathek-worker.pl --dump
@@ -205,8 +207,9 @@ sub update_db { my ($c, $xml) = @_;
 		id => { width => 4, format => '%*s' },
 		expression => { width => -50, format => '%*s' },
 		destination => { width => -20, format => '%*s' },
+		xpath => { width => -10, format => '%*s' },
 	},
-	print => ['id', 'expression', 'destination' ]
+	print => ['id', 'expression', 'destination', 'xpath' ]
 );
 
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
@@ -226,7 +229,7 @@ sub fetch_from_db { my ($c, @queries) = @_;
 }
 
 sub add_search { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{xpath});
+	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{urlextract});
 	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
@@ -234,7 +237,7 @@ sub delete_search { my ($c, @ids) = @_;
 	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 sub update_search { my ($c, @ids) = @_;
-	my @searches = load_db($c)->update_search([@ids], , $c->{destination});
+	my @searches = load_db($c)->update_search([@ids], , $c->{destination}, $c->{urlextract});
 	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
 }
 
