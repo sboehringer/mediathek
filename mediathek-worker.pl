@@ -216,7 +216,9 @@ sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 	return strftime($fmtOut, strptime($date, $fmtIn));
 }
 sub hashPrune { my (%h) = @_;
-	return %h{grep { $h{$_} ne ''} keys %h};
+#	<!> only work in >= 5.20
+#	return %h{grep { $h{$_} ne ''} keys %h};
+	return map { ($_, $h{$_}) } grep { $h{$_} ne ''} keys %h;
 }
 
 sub search_db { my ($c, @queries) = @_;
