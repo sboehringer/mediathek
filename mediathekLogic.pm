@@ -5,7 +5,6 @@
 use MooseX::Declare;
 use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
-use MooseX::UndefTolerant;
 
 class My::Schema {
 	use TempFileNames;
