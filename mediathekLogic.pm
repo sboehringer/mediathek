@@ -5,6 +5,7 @@
 use MooseX::Declare;
 use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
+use MooseX::UndefTolerant;
 
 class My::Schema {
 	use TempFileNames;
@@ -172,7 +173,7 @@ class My::Schema {
 		}
 	}
 
-	method fetchSingle(Str $destination, Str $query, Str $urlextract) {
+	method fetchSingle(Str $destination, Str $query, $urlextract) {
 		my @r = $self->search( ($query) );
 		for my $r (@r) {
 			$r->fetchTo($destination, $urlextract);
