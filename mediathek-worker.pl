@@ -220,6 +220,9 @@ sub hashPrune { my (%h) = @_;
 #	return %h{grep { $h{$_} ne ''} keys %h};
 	return map { ($_, $h{$_}) } grep { $h{$_} ne ''} keys %h;
 }
+sub prefix { my ($s, $sep) = @_;
+	($s eq '')? '': $sep.$s;
+}
 
 sub search_db { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
