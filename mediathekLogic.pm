@@ -225,8 +225,9 @@ class My::Schema::Result::TvItem {
 		my $urlq = main::qs($self->homepage());
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
-			.'tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | '
-			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n";
+			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
+			.'--new-inline-tags section,pagemap,dataobject,attribute | '
+			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
 		my $annotation = ($xpath ne '')? main::trimmStr(`$urlcmd`): '';
 		Log("Annotation command: $urlcmd", 2);
 		Log("Annotation: $annotation", 2);
