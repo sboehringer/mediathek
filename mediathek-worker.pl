@@ -37,10 +37,11 @@ $main::d = {
 	refreshServers => 0,
 	refreshServersCount => 1,
 	refreshTvitems => 0,
+	itemTable => 'default', searchTable => 'default'
 };
 # options
 $main::o = [
-	'destination=s', 'urlextract=s'
+	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -226,7 +227,7 @@ sub prefix { my ($s, $sep) = @_;
 
 sub search_db { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
-	print(formatTable(firstDef($c->{itemTableFormatting}, \%TvTableDesc), \@r). "\n");
+	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
 }
 
 sub fetch_from_db { my ($c, @queries) = @_;
@@ -235,15 +236,18 @@ sub fetch_from_db { my ($c, @queries) = @_;
 
 sub add_search { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{urlextract});
-	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
+		[@searches]). "\n");
 }
 sub delete_search { my ($c, @ids) = @_;
 	my @searches = load_db($c)->delete_search([@ids]);
-	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
+		[@searches]). "\n");
 }
 sub update_search { my ($c, @ids) = @_;
 	my @searches = load_db($c)->update_search([@ids], , $c->{destination}, $c->{urlextract});
-	print(formatTable(firstDef($c->{searchTableFormatting}, \%TvGrepDesc), [@searches]). "\n");
+	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
+		[@searches]). "\n");
 }
 
 sub auto_fetch_db { my ($c) = @_;
