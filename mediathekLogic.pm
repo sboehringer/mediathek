@@ -172,14 +172,14 @@ class My::Schema {
 		}
 	}
 
-	method fetchSingle(Str $destination, Str $query, $urlextract) {
+	method fetchSingle(Str $destination, Str $query, $urlextract, $tags) {
 		my @r = $self->search( ($query) );
 		for my $r (@r) {
-			$r->fetchTo($destination, $urlextract);
+			$r->fetchTo($destination, $urlextract, $tags);
 		}
 	}
 
-	method auto_fetch(Str $destination) {
+	method auto_fetch(Str $destination, $tags) {
 		if (!-e $destination) {
 			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
 			return;
@@ -189,7 +189,7 @@ class My::Schema {
 				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
 					{ key => 'recording_unique' });
 				if (!$record->in_storage()) {
-					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->xpath);
+					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->xpath, $tags);
 					$record->insert() if (!$ret);
 					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 				} else {
@@ -221,12 +221,12 @@ class My::Schema::Result::TvItem {
 		return $command;
 	}
 
-	method annotation($xpath = '') {
+	method annotation($xpath = '', $tags) {
 		my $urlq = main::qs($self->homepage());
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
 			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
-			.'--new-inline-tags section,pagemap,dataobject,attribute | '
+			.main::circumfix(join(',', @$tags), '--new-inline-tags ', ' | ')
 			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
 		my $annotation = ($xpath ne '')? main::trimmStr(`$urlcmd`): '';
 		Log("Annotation command: $urlcmd", 2);
@@ -235,12 +235,12 @@ class My::Schema::Result::TvItem {
 	}
 
 	# default format: day_title
-	method fetchTo($dest, $xpath = '', $fmt = '%D_%T%U.%E') {
+	method fetchTo($dest, $xpath = '', $tags = [], $fmt = '%D_%T%U.%E') {
 		my $destPath = $dest. '/'. mergeDictToString({
 			'%T' => $self->title,
 			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
 			'%E' => splitPathDict($self->url)->{extension},
-			'%U' => main::prefix($self->annotation($xpath), '_')
+			'%U' => main::prefix($self->annotation($xpath, $tags), '_')
 		}, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);

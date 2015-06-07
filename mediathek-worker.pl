@@ -224,6 +224,12 @@ sub hashPrune { my (%h) = @_;
 sub prefix { my ($s, $sep) = @_;
 	($s eq '')? '': $sep.$s;
 }
+sub postfix { my ($s, $sep) = @_;
+	($s eq '')? '': $s.$sep;
+}
+sub circumfix { my ($s, $sepPre, $sepPost) = @_;
+	postfix(prefix($s, $sepPre), $sepPost)
+}
 
 sub search_db { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
@@ -231,7 +237,7 @@ sub search_db { my ($c, @queries) = @_;
 }
 
 sub fetch_from_db { my ($c, @queries) = @_;
-	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract});
+	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract}, $c->{'tidy-inline-tags'});
 }
 
 sub add_search { my ($c, @queries) = @_;
@@ -251,7 +257,7 @@ sub update_search { my ($c, @ids) = @_;
 }
 
 sub auto_fetch_db { my ($c) = @_;
-	load_db($c)->auto_fetch($c->{videolibrary});
+	load_db($c)->auto_fetch($c->{videolibrary}, $c->{'tidy-inline-tags'});
 }
 
 #main $#ARGV @ARGV %ENV
