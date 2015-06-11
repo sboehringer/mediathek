@@ -66,10 +66,14 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --addsearch 'channel:ARTE.DE;title:Reiseporträts'
 	# or
 	mediathek-worker.pl --search 'topic:Tatort' 'channel:ARD'
+	# list search results with alternate table layout (as defined in config; see wiki)
+	mediathek-worker.pl --search 'topic:Tatort' --itemTable wide
 	# permanently add search
 	mediathek-worker.pl --addsearch 'topic:Tatort;channel:ARD;title:!Vorschau%'
 	# list active searches
 	mediathek-worker.pl --addsearch
+	# list active searches with alternate table layout (as defined in config; see wiki)
+	mediathek-worker.pl --addsearch --searchTable xpath
 	# delete search
 	mediathek-worker.pl --deletesearch 1
 	# update download destination
