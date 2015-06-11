@@ -265,6 +265,6 @@ sub auto_fetch_db { my ($c) = @_;
 }
 
 #main $#ARGV @ARGV %ENV
-	#initLog(2);
+	#initLog(5);
 	my $c = StartStandardScript($main::d, $main::o);
 exit(0);
