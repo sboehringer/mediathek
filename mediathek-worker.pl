@@ -108,6 +108,24 @@ my $sqlitedb = <<DBSCHEMA;
 	);
 DBSCHEMA
 
+%main::TvTableDesc = ( parameters => { width => 79 },
+	columns => {
+		channel => { width => -7, format => '%*s' },
+		date => { width => 19, format => '%*s' },
+		title => { width => -50, format => '%*s' }
+	},
+	print => ['channel', 'date', 'title']
+);
+%main::TvGrepDesc = ( parameters => { width => 79 },
+	columns => {
+		id => { width => 4, format => '%*s' },
+		expression => { width => -50, format => '%*s' },
+		destination => { width => -20, format => '%*s' },
+		xpath => { width => -10, format => '%*s' },
+	},
+	print => ['id', 'expression', 'destination', 'xpath' ]
+);
+
 sub instantiate_db { my ($c) = @_;
 	my $dbfile = "$c->{location}/mediathek.db";
 	return if (-e $dbfile);
@@ -130,7 +148,7 @@ sub dbDumpschema { my ($c) = @_;
 
 sub dbCreatedb { my ($c) = @_;
 	instantiate_db($c);
-	dump_schema($c);
+	dbDumpschema($c);
 }
 
 sub dbPrintconfig { my ($c) = @_;
@@ -187,24 +205,6 @@ sub dbPrune { my ($c) = @_;
 sub dbUpdatedb { my ($c, $xml) = @_;
 	load_db($c)->update($c, $xml);
 }
-
-%main::TvTableDesc = ( parameters => { width => 79 },
-	columns => {
-		channel => { width => -7, format => '%*s' },
-		date => { width => 19, format => '%*s' },
-		title => { width => -50, format => '%*s' }
-	},
-	print => ['channel', 'date', 'title']
-);
-%main::TvGrepDesc = ( parameters => { width => 79 },
-	columns => {
-		id => { width => 4, format => '%*s' },
-		expression => { width => -50, format => '%*s' },
-		destination => { width => -20, format => '%*s' },
-		xpath => { width => -10, format => '%*s' },
-	},
-	print => ['id', 'expression', 'destination', 'xpath' ]
-);
 
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 	return strftime($fmtOut, strptime($date, $fmtIn));

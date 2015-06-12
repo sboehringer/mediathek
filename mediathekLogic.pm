@@ -54,7 +54,7 @@ class My::Schema {
 		# <p> database update
 		#
 		# keys as of parse-videolist-json
-		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'dauer', 'url_hd', 'url', 'homepage' );
+		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'duration', 'url_hd', 'url', 'homepage' );
 		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
 		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
@@ -150,13 +150,18 @@ class My::Schema {
 	}
 
 	method search(@queries) {
+		my $likeKeys = dictWithKeys(['topic', 'title'], 1);
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
 			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
-			my %query = map { my ($k, $v, $not) = ($_, $terms{$_});
-				($not, $v) = ($v =~ m{^([!]?)(.*)}sog);
+			my %query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
+				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
 				$k = 'time(date)' if ($k eq 'time');
-				($k, { ($not? 'not like': 'like'), $v })
+				my $isCmp = defined(which($modifier, ['>', '<']));
+				my @q = $likeKeys->{$k}
+				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
+				: ($k, $isCmp? { $modifier, $v }: $v);
+				@q
 			} keys %terms;
 			main::Log(main::Dumper(\%query), 5);
 			my @items = $tv_item->search(\%query);
