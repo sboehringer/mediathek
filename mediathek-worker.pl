@@ -13,23 +13,9 @@ use POSIX qw(strftime mktime);
 use POSIX::strptime qw(strptime);
 use utf8;
 
-
 # default options
 $main::d = {
 	config => 'mediathek.cfg',
-	'updatedb' => \&update_db,
-	createdb => \&create_db,
-	printconfig => \&print_config,
-	dump => \&dump_db,
-	search => \&search_db,
-	addsearch => \&add_search,
-	deletesearch => \&delete_search,
-	updatesearch => \&update_search,
-	autofetch => \&auto_fetch_db,
-	fetch => \&fetch_from_db,
-	prune => \&prune_db,
-	dumpschema => \&dump_schema,
-	serverlist => \&serverList,
 	location => "$ENV{HOME}/.local/share/applications/mediathek",
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
 	videolibrary => "$ENV{HOME}/Videos/Mediathek",
@@ -37,11 +23,14 @@ $main::d = {
 	refreshServers => 0,
 	refreshServersCount => 1,
 	refreshTvitems => 0,
-	itemTable => 'default', searchTable => 'default'
+	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db'
 };
 # options
 $main::o = [
-	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s'
+	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s',
+	'+createdb', '+updatedb',
+	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
+	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -128,7 +117,7 @@ sub instantiate_db { my ($c) = @_;
 	#$sth->execute();
 }
 
-sub dump_schema { my ($c) = @_;
+sub dbDumpschema { my ($c) = @_;
 	my $dbfile = "$c->{location}/mediathek.db";
 	# DBIx schema
 	my $schemadir = "$c->{location}/schema";
@@ -139,16 +128,16 @@ sub dump_schema { my ($c) = @_;
 	);
 }
 
-sub create_db { my ($c) = @_;
+sub dbCreatedb { my ($c) = @_;
 	instantiate_db($c);
 	dump_schema($c);
 }
 
-sub print_config { my ($c) = @_;
+sub dbPrintconfig { my ($c) = @_;
 	print(Dumper($c));
 }
 
-sub serverList { my ($c) = @_;
+sub dbServerlist { my ($c) = @_;
 	my @servers = load_db($c)->serverList($c);
 	print(Dumper([@servers]));
 }
@@ -163,7 +152,7 @@ sub load_db { my ($c) = @_;
 	return $schema;
 }
 
-sub dump_db { my ($c) = @_;
+sub dbDump { my ($c) = @_;
 	my $s = load_db($c);
 
 	my $tv_item = $s->resultset('TvItem');
@@ -190,12 +179,12 @@ sub meta_get { my ($urls, $o, %c) = @_;
 	return $o;
 }
 
-sub prune_db { my ($c) = @_;
+sub dbPrune { my ($c) = @_;
 	load_db($c)->prune();
 }
 
 # <A> no proper quoting of csv output
-sub update_db { my ($c, $xml) = @_;
+sub dbUpdatedb { my ($c, $xml) = @_;
 	load_db($c)->update($c, $xml);
 }
 
@@ -235,32 +224,32 @@ sub circumfix { my ($s, $sepPre, $sepPost) = @_;
 	postfix(prefix($s, $sepPre), $sepPost)
 }
 
-sub search_db { my ($c, @queries) = @_;
+sub dbSearch { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
 	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
 }
 
-sub fetch_from_db { my ($c, @queries) = @_;
+sub dbFetch { my ($c, @queries) = @_;
 	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract}, $c->{'tidy-inline-tags'});
 }
 
-sub add_search { my ($c, @queries) = @_;
+sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{urlextract});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
-sub delete_search { my ($c, @ids) = @_;
+sub dbDeletesearch { my ($c, @ids) = @_;
 	my @searches = load_db($c)->delete_search([@ids]);
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
-sub update_search { my ($c, @ids) = @_;
+sub dbUpdatesearch { my ($c, @ids) = @_;
 	my @searches = load_db($c)->update_search([@ids], , $c->{destination}, $c->{urlextract});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
 
-sub auto_fetch_db { my ($c) = @_;
+sub dbAutofetch { my ($c) = @_;
 	load_db($c)->auto_fetch($c->{videolibrary}, $c->{'tidy-inline-tags'});
 }
 
