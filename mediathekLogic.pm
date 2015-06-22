@@ -150,7 +150,7 @@ class My::Schema {
 	}
 
 	method search(@queries) {
-		my $likeKeys = dictWithKeys(['topic', 'title'], 1);
+		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
 			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
