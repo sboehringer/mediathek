@@ -68,7 +68,7 @@ class My::Schema {
 			my $tv = $self->resultset('TvItem');
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
-				Log(sprintf("%3.1eth entry", $i), 4);
+				Log(sprintf("%3de3th entry", $i/1e3), 4);
 			}
 			my $this = makeHash(\@keys, [split(/$sep/, $l)]);
 			# <p> field carry over
@@ -116,7 +116,8 @@ class My::Schema {
 			my @serverList = $self->serverList($c);
 			$self->updateWithJson($c, main::meta_get([$serverList[0]],
 				"$c->{location}/database-json.xz",
-					refetchAfter => $c->{refreshTvitems}, seq => 0));
+					refetchAfter => $c->{refreshTvitems}, seq => 0)) if (!$c->{refreshServersCount});
+			Log("Number of servers to probe: $c->{refreshServersCount}", 5);
 			for (my $i = 0; $i < $c->{refreshServersCount}; $i++) {
 				$xml = main::meta_get([@serverList], "$c->{location}/database-json-$i.xz",
 					refetchAfter => $c->{refreshTvitems}, seq => 0);
@@ -227,13 +228,14 @@ class My::Schema::Result::TvItem {
 	}
 
 	method annotation($xpath = '', $tags) {
+		return '' if ($xpath eq '');
 		my $urlq = main::qs($self->homepage());
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
 			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
-			.main::circumfix(join(',', @$tags), '--new-inline-tags ', ' | ')
+			.main::circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
 			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
-		my $annotation = ($xpath ne '')? main::trimmStr(`$urlcmd`): '';
+		my $annotation = main::trimmStr(`$urlcmd`);
 		Log("Annotation command: $urlcmd", 2);
 		Log("Annotation: $annotation", 2);
 		return $annotation;
