@@ -228,7 +228,7 @@ class My::Schema::Result::TvItem {
 	}
 
 	method annotation($xpath = '', $tags) {
-		return '' if ($xpath eq '');
+		return '' if (!defined($xpath) || $xpath eq '');
 		my $urlq = main::qs($self->homepage());
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
@@ -247,7 +247,7 @@ class My::Schema::Result::TvItem {
 			'%T' => $self->title,
 			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
 			'%E' => splitPathDict($self->url)->{extension},
-			'%U' => main::prefix($self->annotation($xpath, $tags), '_')
+			'%U' => defined($xpath)? main::prefix($self->annotation($xpath, $tags), '_'): ''
 		}, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
