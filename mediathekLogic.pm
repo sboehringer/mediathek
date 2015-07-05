@@ -213,7 +213,7 @@ class My::Schema::Result::TvItem {
 
 	my %templates = (
 		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
-		http => 'mplayer URL -dumpstream -dumpfile OUTPUT'
+		http => 'mplayer -nolirc URL -dumpstream -dumpfile OUTPUT'
 	);
 	method commandWithOutput(Str $destPath) {
 		Log("URL: ". $self->url(), 2);
