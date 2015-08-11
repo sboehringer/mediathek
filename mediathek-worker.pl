@@ -15,10 +15,10 @@ use utf8;
 
 # default options
 $main::d = {
-	config => 'mediathek.cfg',
-	location => "$ENV{HOME}/.local/share/applications/mediathek",
+	config => 'mediathek.cfg', configPaths => [ $ENV{MEDIATHEK_CONFIG} ],
+	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
-	videolibrary => "$ENV{HOME}/Videos/Mediathek",
+	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
 	keepForDays => 10,
 	refreshServers => 0,
 	refreshServersCount => 1,

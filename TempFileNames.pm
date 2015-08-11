@@ -3,7 +3,7 @@ require 5.000;
 require Exporter;
 
 @ISA       = qw(Exporter);
-@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &formatTableComponents &formatTable);
+@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &dateReformat &formatTableComponents &formatTable &lcPrefix);
 
 #@EXPORT_OK = qw($sally @listabob %harry func3);
 
@@ -182,6 +182,9 @@ sub readFileFirstLocation { my ($filePath, $c, @dirs) = @_;
 	return $c->{returnPath}? { path => $location, file => $f }: $f;
 }
 
+# search for filename $fileName in @paths
+# if not found use $c->{default} if defined
+# if $c->{configPaths} is defined prepend to @paths
 sub readConfigFile { my ($fileName, $c, @paths) = @_;
 	@paths = ('.', "$ENV{HOME}/MyLibrary/Configs", "$ENV{HOME}/Library/Configs",
 		"/Library/Configs", "/MyLibrary/Configs", '/'
@@ -191,6 +194,8 @@ sub readConfigFile { my ($fileName, $c, @paths) = @_;
 		push(@paths, $c) if (defined($c));
 		$c = {};
 	}
+	unshift(@paths, @{$c->{paths}}) if (defined($c->{paths}));
+	Log('readConfigFile: pathes: '. join(':', @paths), 7);
 	my $plistFile = readFileFirstLocation($fileName, $c, @paths);
 	my $plist;
 	if (!defined($plistFile)) {
@@ -760,7 +765,8 @@ sub pipeStringToCommandSystem { my ($strRef, $cmd, $logLevel)=@_;
 sub mergeDictToString { my ($hash, $str, $flags)=@_;
 	my $maxIterations = firstDef($flags->{maxIterations}, 20);
 	my @keys = grep { defined($hash->{$_}) } keys(%{$hash});
-	if (uc($flags->{sortKeys}) eq 'YES' || uc($flags->{iterate}) eq 'YES')
+	my $doIterate = uc($flags->{iterate}) eq 'YES';
+	if (uc($flags->{sortKeys}) eq 'YES' || $doIterate)
 	{	@keys = sort { length($b) <=> length($a); } @keys;
 	}
 	if (uc($flags->{sortKeysInOrder}) eq 'YES')
@@ -771,11 +777,15 @@ sub mergeDictToString { my ($hash, $str, $flags)=@_;
 		$str0 = $str;
 		if (uc($flags->{keysAreREs}) eq 'YES')
 		{	foreach $key (@keys)
-			{	$str=~s/$key/$hash->{$key}/g;
+			{	$str =~ s/$key/$hash->{$key}/g;
+				# need to start from beginning to retain length order
+				last if ($doIterate && $str ne $str0);
 			}
 		} else {
 			foreach $key (@keys)
 			{	$str=~s/\Q$key\E/$hash->{$key}/g;
+				# need to start from beginning to retain length order
+				last if ($doIterate && $str ne $str0);
 			}
 		}
 	} while (uc($flags->{iterate}) eq 'YES' && ($str ne $str0) && --$maxIterations);
@@ -798,6 +808,17 @@ sub removeWS { my($str)=@_;	#remove all whitespace inside string
 	$str=~s/\s+//og;
 	return $str;
 }
+
+sub lcPrefix { my (@s) = @_;
+	my $minL = min(map { length($_) } @s);
+	for (my $i = 0; $i < $minL; $i++) {
+		for (my ($c, $j) = (substr($s[0], $i, 1), 1); $j < @s; $j++) {
+			return substr($s[0], 0, $i) if (substr($s[$j], $i, 1) ne $c);
+		}
+	}
+	return substr($s[0], 0, $minL);
+}
+
 
 sub mapTr { my ($s, $pat, $subst) = @_;
 	eval "\$s =~ tr{$pat}{$subst}";
@@ -989,9 +1010,13 @@ sub callTriggersFromOptions { my ($c, @args) = @_;
 	exit($ret) if ($didCall);
 }
 
+
 %StartStandardScriptOptions = (
 	returnDeepStruct => 0, triggerPrefix => 'do', callTriggers => 1, helpOnEmptyCall => 0
 );
+# example for option === function name
+# $main::d = { triggerPrefix => '' };
+# $main::o = [ '+encryptToHex=s'];
 
 # $returnDeepStruct returns a dict with elements c, o, cred
 #	return a merged dict otherwise
@@ -1026,7 +1051,8 @@ sub StartStandardScript { my ($defaults, $options, %sso) = @_;
 		exit(!$result);
 	}
 	my $c = {};
-	$c = readConfigFile($o->{config}, { default => {} }) if (defined($o->{config}));
+	$c = readConfigFile($o->{config}, { default => {}, paths => $o->{configPaths} })
+		if (defined($o->{config}));
 	my $cred = undef;
 	if (defined($o->{credentials})) {
 		load('KeyRing');
@@ -1279,6 +1305,10 @@ sub formatTable { my ($d, $rows, $cols) = @_;
 	my $t = formatTableComponents($d, $rows, $cols);
 
 	return join("\n", ($t->{header}, $t->{separator}, @{$t->{rows}}));
+}
+
+sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
+	return strftime($fmtOut, strptime($date, $fmtIn));
 }
 
 
