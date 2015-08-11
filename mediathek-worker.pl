@@ -99,6 +99,7 @@ my $sqlitedb = <<DBSCHEMA;
 		expression text not null,
 		destination text,
 		xpath text,
+		type integer REFERENCES tv_type(id),
 		-- ALTER TABLE tv_grep ADD COLUMN destination text;
 		UNIQUE(expression)
 	);
