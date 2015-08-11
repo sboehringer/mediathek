@@ -88,6 +88,7 @@ my $sqlitedb = <<DBSCHEMA;
 		url text,
 		duration integer,
 		homepage text,
+		type integer REFERENCES tv_type(id),
 		UNIQUE(channel, date, title)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
@@ -105,6 +106,13 @@ my $sqlitedb = <<DBSCHEMA;
 		id integer primary key autoincrement,
 		recording integer REFERENCES tv_item(id),
 		UNIQUE(recording)
+	);
+	CREATE TABLE tv_type (
+		id integer primary key autoincrement,
+		name text,
+		parameters text,
+		paramatersGlobal text,
+		UNIQUE(name)
 	);
 DBSCHEMA
 
