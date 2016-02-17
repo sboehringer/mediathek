@@ -78,10 +78,11 @@ class My::Schema {
 			# <p> skip bogus entries
 			next if (!defined($this->{day}) || $this->{day} eq '' || $this->{time} eq '');
 			$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
+			next if (!defined($this->{date}));
 			next if (!defined($this->{date})
 				|| $this->{date} eq ''
 				|| ($now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S")))
-					> $c->{keepForDays} * 86400);
+					> firstDef($c->{acceptDaysBack}, $c->{keepForDays}) * 86400);
 			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
 				if (defined($this->{duration}));
 			# <!> url_hd interpretation unclear

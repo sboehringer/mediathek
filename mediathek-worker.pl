@@ -19,7 +19,7 @@ $main::d = {
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
-	keepForDays => 10,
+	keepForDays => 10, acceptDaysBack => 365*3,
 	refreshServers => 0,
 	refreshServersCount => 1,
 	refreshTvitems => 0,
