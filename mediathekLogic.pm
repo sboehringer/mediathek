@@ -257,3 +257,27 @@ class My::Schema::Result::TvItem {
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 }
+
+class My::Schema::TvType::Youtube {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+}
+
+class My::Schema::TvType::Mediathek {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+}
+
+class My::Schema::TvType {
+	use base qw( DBIx::Class::Core );
+	__PACKAGE__->load_components(qw{DynamicSubclass Core});
+	__PACKAGE__->table('tv_type');
+	__PACKAGE__->add_column(qw{id name});
+	__PACKAGE__->typecast_map(name => {
+		'youtube' => 'My::Schema::TvType::Youtube',
+		'mediathek' => 'My::Schema::TvType::Mediathek'
+	});
+
+}
