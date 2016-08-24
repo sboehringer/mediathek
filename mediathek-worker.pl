@@ -30,7 +30,8 @@ $main::o = [
 	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
-	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune'
+	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
+	'+iteratesources'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -94,6 +95,7 @@ my $sqlitedb = <<DBSCHEMA;
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
 	CREATE INDEX tv_item_title_idx ON tv_item (title);
+	CREATE INDEX tv_item_type_idx ON tv_item (type);
 	CREATE TABLE tv_grep (
 		id integer primary key autoincrement,
 		expression text not null,
@@ -103,18 +105,23 @@ my $sqlitedb = <<DBSCHEMA;
 		-- ALTER TABLE tv_grep ADD COLUMN destination text;
 		UNIQUE(expression)
 	);
+	CREATE INDEX tv_grep_type_idx ON tv_grep (type);
 	CREATE TABLE tv_recording (
 		id integer primary key autoincrement,
 		recording integer REFERENCES tv_item(id),
+		type integer REFERENCES tv_type(id),
 		UNIQUE(recording)
 	);
+	CREATE INDEX tv_recording_type_idx ON tv_recording (type);
 	CREATE TABLE tv_type (
 		id integer primary key autoincrement,
-		name text,
+		name text not null,
 		parameters text,
 		paramatersGlobal text,
 		UNIQUE(name)
 	);
+	INSERT INTO tv_type (name) values ('mediathek');
+	INSERT INTO tv_type (name) values ('youtube');
 DBSCHEMA
 
 %main::TvTableDesc = ( parameters => { width => 79 },
@@ -138,7 +145,8 @@ DBSCHEMA
 sub instantiate_db { my ($c) = @_;
 	my $dbfile = "$c->{location}/mediathek.db";
 	return if (-e $dbfile);
-	System("mkdir --parents $c->{location} ; echo '$sqlitedb\n.quit' | sqlite3 $dbfile", 2);
+	System("mkdir --parents $c->{location} ", 2);
+	System("echo ". qs($sqlitedb). "'\n.quit' | sqlite3 $dbfile", 2);
 	#my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile", '', '');
 	#my $sth = $dbh->prepare($sqlitedb);
 	#$sth->execute();
@@ -260,6 +268,10 @@ sub dbUpdatesearch { my ($c, @ids) = @_;
 
 sub dbAutofetch { my ($c) = @_;
 	load_db($c)->auto_fetch($c->{videolibrary}, $c->{'tidy-inline-tags'});
+}
+
+sub dbIteratesources { my ($c) = @_;
+	load_db($c)->iterate_sources();	
 }
 
 #main $#ARGV @ARGV %ENV

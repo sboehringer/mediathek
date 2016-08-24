@@ -6,6 +6,39 @@ use MooseX::Declare;
 use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
 
+class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+
+	method name() { return('youtube'); }
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+
+	method name() { return('mediathek'); }
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvType {
+	use base qw( DBIx::Class::Core );
+	__PACKAGE__->load_components(qw{DynamicSubclass Core});
+	__PACKAGE__->table('tv_type');
+	__PACKAGE__->add_column(qw{id name});
+	__PACKAGE__->typecast_map(name => {
+		'youtube' => 'My::Schema::Result::TvType::Youtube',
+		'mediathek' => 'My::Schema::Result::TvType::Mediathek'
+	});
+
+	method name() { return('generic'); }
+
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
 class My::Schema {
 	use TempFileNames;
 	use Set;
@@ -204,6 +237,14 @@ class My::Schema {
 			}
 		}
 	}
+
+	method iterate_sources() {
+		my @types = ($self->resultset('TvType')->all);
+		Log("# TvTypes == ". int(@types), 5);
+		for my $q ( @types ) {
+			Log("Name: ". $q->name(), 5);
+		}
+	}
 }
 
 class My::Schema::Result::TvItem {
@@ -256,28 +297,4 @@ class My::Schema::Result::TvItem {
 	}
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
-}
-
-class My::Schema::TvType::Youtube {
-	use TempFileNames;
-	use Data::Dumper;
-	use utf8;
-}
-
-class My::Schema::TvType::Mediathek {
-	use TempFileNames;
-	use Data::Dumper;
-	use utf8;
-}
-
-class My::Schema::TvType {
-	use base qw( DBIx::Class::Core );
-	__PACKAGE__->load_components(qw{DynamicSubclass Core});
-	__PACKAGE__->table('tv_type');
-	__PACKAGE__->add_column(qw{id name});
-	__PACKAGE__->typecast_map(name => {
-		'youtube' => 'My::Schema::TvType::Youtube',
-		'mediathek' => 'My::Schema::TvType::Mediathek'
-	});
-
 }
