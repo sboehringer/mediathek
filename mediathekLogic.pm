@@ -12,6 +12,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType {
 	use utf8;
 
 	method name() { return('youtube'); }
+	method fetch() { Log('fetch: youtube'); }
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -21,6 +22,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType {
 	use utf8;
 
 	method name() { return('mediathek'); }
+	method fetch() { Log('fetch: mediathek'); }
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -238,11 +240,11 @@ class My::Schema {
 		}
 	}
 
-	method iterate_sources() {
+	method iterate_sources(Str $method) {
 		my @types = ($self->resultset('TvType')->all);
 		Log("# TvTypes == ". int(@types), 5);
 		for my $q ( @types ) {
-			Log("Name: ". $q->name(), 5);
+			Log("Name: ". $q->$method(), 5);
 		}
 	}
 }

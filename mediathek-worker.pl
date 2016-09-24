@@ -23,7 +23,7 @@ $main::d = {
 	refreshServers => 0,
 	refreshServersCount => 1,
 	refreshTvitems => 0,
-	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db'
+	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db', iteratesources => 'name'
 };
 # options
 $main::o = [
@@ -31,7 +31,7 @@ $main::o = [
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
-	'+iteratesources'
+	'+iteratesources=s'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -271,7 +271,7 @@ sub dbAutofetch { my ($c) = @_;
 }
 
 sub dbIteratesources { my ($c) = @_;
-	load_db($c)->iterate_sources();	
+	load_db($c)->iterate_sources($c->{iteratesources});	
 }
 
 #main $#ARGV @ARGV %ENV
