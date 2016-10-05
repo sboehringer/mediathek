@@ -1281,14 +1281,15 @@ sub formatTableRows { my ($d, $t, $cols) = @_;
 	} @{$d->{columns}}{@$cols});
 	my @rows = map { my $r = $_;
 		sprintf($fmt, map { my $c = $_;
+			my $f = $d->{columns}{$_}{format};
 			my $v;
 			if (ref($r) eq 'HASH') {
 				$v = $r->{$c};
 			} else {
 				my $code = ref($r)->can($c);
 				$v = $r->$code();
+				$v = $v->$method() if (defined($f->{method}));
 			}
-			my $f = $d->{columns}{$_}{format};
 			my $tr = $Set::tableFormats{$f}{transform};
 			$v = $tr->($v) if (defined($tr));
 			# <p> width

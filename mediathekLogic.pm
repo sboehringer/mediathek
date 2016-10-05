@@ -6,22 +6,42 @@ use MooseX::Declare;
 use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
 
-class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType {
+class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	use TempFileNames;
 	use Data::Dumper;
 	use utf8;
+	use PropertyList;
 
-	method name() { return('youtube'); }
+	has 'pars' => ( isa => 'HASH', is => 'rw', lazy => 1, builder => 'builderPars' );
+
+	method builderPars() {
+		return propertyFromString($self->parameters());
+	}
+	method par(Str $key) {
+		return $self->{pars}{$key};
+	}
+
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Base {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+	__PACKAGE__->add_column(qw{id name parameters});
+
+	#method name() { return('youtube'); }
 	method fetch() { Log('fetch: youtube'); }
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
-class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType {
+class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::Base {
 	use TempFileNames;
 	use Data::Dumper;
 	use utf8;
+	__PACKAGE__->add_column(qw{id name parameters});
 
-	method name() { return('mediathek'); }
+	#method name() { return('mediathek'); }
 	method fetch() { Log('fetch: mediathek'); }
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -30,7 +50,7 @@ class My::Schema::Result::TvType {
 	use base qw( DBIx::Class::Core );
 	__PACKAGE__->load_components(qw{DynamicSubclass Core});
 	__PACKAGE__->table('tv_type');
-	__PACKAGE__->add_column(qw{id name});
+	__PACKAGE__->add_column(qw{id name parameters});
 	__PACKAGE__->typecast_map(name => {
 		'youtube' => 'My::Schema::Result::TvType::Youtube',
 		'mediathek' => 'My::Schema::Result::TvType::Mediathek'
@@ -161,12 +181,15 @@ class My::Schema {
 		}
 	}
 
-	method add_search($queries, $destination = '', $xpath = '') {
+	method add_search($queries, $destination = '', $xpath = '', $type = 'mediathek') {
 		my $query = $self->resultset('TvGrep');
+		my $t = $self->resultset('TvType')->search( { name => $type } )->next;
 		for my $q (@$queries) { $query->create(
-			{ main::hashPrune(%{{expression => $q, destination => $destination, xpath => $xpath}}) }
+			{ main::hashPrune(%{{expression => $q,
+				destination => $destination, witness => $xpath, type => $t->id }}) }
 		); }
-		return $query->all;
+		return $self->resultset('TvGrep')->search({}, { prefetch => 'type'})->all;
+		#return $query->all;
 	}
 
 	method delete_search($ids) {
@@ -230,7 +253,7 @@ class My::Schema {
 				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
 					{ key => 'recording_unique' });
 				if (!$record->in_storage()) {
-					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->xpath, $tags);
+					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $tags);
 					$record->insert() if (!$ret);
 					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 				} else {
