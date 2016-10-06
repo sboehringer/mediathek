@@ -6,6 +6,21 @@ use MooseX::Declare;
 use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
 
+class My::Schema::Result::TvType {
+	use base qw( DBIx::Class::Core );
+	__PACKAGE__->load_components(qw{DynamicSubclass Core});
+	__PACKAGE__->table('tv_type');
+	__PACKAGE__->add_column(qw{id name parameters});
+	__PACKAGE__->typecast_map(name => {
+		'youtube' => 'My::Schema::Result::TvType::Youtube',
+		'mediathek' => 'My::Schema::Result::TvType::Mediathek'
+	});
+
+	method name() { return('generic'); }
+
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
 class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	use TempFileNames;
 	use Data::Dumper;
@@ -30,8 +45,36 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 	use utf8;
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	#method name() { return('youtube'); }
 	method fetch() { Log('fetch: youtube'); }
+	method updateChannel($channel, $schema) {
+		my $sep = ':<>:';	# fetch-parse-videolist-json.pl
+		my $cmd = './fetch-parse-youtube.pl --fetch https://www.youtube.com/channel/'. $channel->witness;
+		#
+		# <p> database update
+		#
+		# keys as of parse-videolist-json
+		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'duration', 'url_hd', 'url', 'homepage' );
+		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
+		my @skeys = ( 'channel', 'title' );	# search keys
+		my $fh = IO::File->new("$cmd |");
+		die "couldn't fetch channel list [$channel]" if (!defined($fh));
+		my $prev = {};
+		my $i = 0;
+		my $icnt = 0;	# insert count
+		my $now = time();
+		while (my $l = <$fh>) {
+			print $l;
+		}
+	}
+	method update($schema) {
+		Log("Updating youtube channels", 3);
+		my @channels = $schema->resultset('TvGrep')->search( { type => $self->id } )->all;
+		for my $q ( @channels ) {
+			Log("Fetching channel: ". $q->witness, 3);
+			$self->updateChannel($q, $schema);
+		}
+	}
+
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -41,37 +84,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 	use utf8;
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	#method name() { return('mediathek'); }
 	method fetch() { Log('fetch: mediathek'); }
-	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
-}
-
-class My::Schema::Result::TvType {
-	use base qw( DBIx::Class::Core );
-	__PACKAGE__->load_components(qw{DynamicSubclass Core});
-	__PACKAGE__->table('tv_type');
-	__PACKAGE__->add_column(qw{id name parameters});
-	__PACKAGE__->typecast_map(name => {
-		'youtube' => 'My::Schema::Result::TvType::Youtube',
-		'mediathek' => 'My::Schema::Result::TvType::Mediathek'
-	});
-
-	method name() { return('generic'); }
-
-	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
-}
-
-class My::Schema {
-	use TempFileNames;
-	use Set;
-	use Data::Dumper;
-	use POSIX qw(strftime mktime ceil);
-	use POSIX::strptime qw(strptime);
-	use utf8;
-
-	method greetings() {
-		Log("Hello world");
-	}
 
 	method prune(Num $keepForDays = 10) {
 		my $now = time();
@@ -164,29 +177,40 @@ class My::Schema {
 		Log(sprintf('Added %d items.', $icnt), 3);
 	}
 	# <A> no proper quoting of csv output
-	method update($c, $xml) {
-		if (defined($xml)) {
-			$self->updateWithJson($c, $xml);
+	method update($schema) {
+	}
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+
+class My::Schema {
+	use TempFileNames;
+	use Set;
+	use Data::Dumper;
+	use POSIX qw(strftime mktime ceil);
+	use POSIX::strptime qw(strptime);
+	use utf8;
+
+	method greetings() {
+		Log("Hello world");
+	}
+
+	method update($c, $type) {
+		if (!defined($type)) {
+			$self->iterate_sources('update', $self);
 		} else {
-			my @serverList = $self->serverList($c);
-			$self->updateWithJson($c, main::meta_get([$serverList[0]],
-				"$c->{location}/database-json.xz",
-					refetchAfter => $c->{refreshTvitems}, seq => 0)) if (!$c->{refreshServersCount});
-			Log("Number of servers to probe: $c->{refreshServersCount}", 5);
-			for (my $i = 0; $i < $c->{refreshServersCount}; $i++) {
-				$xml = main::meta_get([@serverList], "$c->{location}/database-json-$i.xz",
-					refetchAfter => $c->{refreshTvitems}, seq => 0);
-				$self->updateWithJson($c, $xml);
-			}
+			my $t = $self->resultset('TvType')->search( { name => $type } )->next;
+			$t->update($self);
 		}
 	}
 
-	method add_search($queries, $destination = '', $xpath = '', $type = 'mediathek') {
+	method add_search($queries, $destination = '', $witness = '', $type = 'mediathek') {
 		my $query = $self->resultset('TvGrep');
 		my $t = $self->resultset('TvType')->search( { name => $type } )->next;
+		Log("Type: $type", 2);
 		for my $q (@$queries) { $query->create(
 			{ main::hashPrune(%{{expression => $q,
-				destination => $destination, witness => $xpath, type => $t->id }}) }
+				destination => $destination, witness => $witness, type => $t->id }}) }
 		); }
 		return $self->resultset('TvGrep')->search({}, { prefetch => 'type'})->all;
 		#return $query->all;
@@ -263,11 +287,11 @@ class My::Schema {
 		}
 	}
 
-	method iterate_sources(Str $method) {
+	method iterate_sources(Str $method, @args) {
 		my @types = ($self->resultset('TvType')->all);
 		Log("# TvTypes == ". int(@types), 5);
 		for my $q ( @types ) {
-			Log("Name: ". $q->$method(), 5);
+			Log("Name: ". $q->$method(@args), 5);
 		}
 	}
 }
@@ -299,9 +323,9 @@ class My::Schema::Result::TvItem {
 		my $xpathq = main::qs($xpath);
 		my $urlcmd = "wget -qO- $urlq | "
 			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
-			.main::circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
+			.circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
 			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
-		my $annotation = main::trimmStr(`$urlcmd`);
+		my $annotation = trimmStr(`$urlcmd`);
 		Log("Annotation command: $urlcmd", 2);
 		Log("Annotation: $annotation", 2);
 		return $annotation;
@@ -313,7 +337,7 @@ class My::Schema::Result::TvItem {
 			'%T' => $self->title,
 			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
 			'%E' => splitPathDict($self->url)->{extension},
-			'%U' => defined($xpath)? main::prefix($self->annotation($xpath, $tags), '_'): ''
+			'%U' => defined($xpath)? prefix($self->annotation($xpath, $tags), '_'): ''
 		}, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);

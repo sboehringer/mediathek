@@ -29,7 +29,7 @@ $main::d = {
 };
 # options
 $main::o = [
-	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s',
+	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s', 'id=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
@@ -98,7 +98,7 @@ my $sqlitedb = <<"DBSCHEMA";
 		duration integer,
 		homepage text,
 		type integer REFERENCES tv_type(id),
-		UNIQUE(channel, date, title)
+		UNIQUE(channel, date, title, type)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
@@ -229,25 +229,7 @@ sub dbPrune { my ($c) = @_;
 
 # <A> no proper quoting of csv output
 sub dbUpdatedb { my ($c, $xml) = @_;
-	load_db($c)->update($c, $xml);
-}
-
-sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
-	return strftime($fmtOut, strptime($date, $fmtIn));
-}
-sub hashPrune { my (%h) = @_;
-#	<!> only work in >= 5.20
-#	return %h{grep { $h{$_} ne ''} keys %h};
-	return map { ($_, $h{$_}) } grep { $h{$_} ne ''} keys %h;
-}
-sub prefix { my ($s, $sep) = @_;
-	($s eq '')? '': $sep.$s;
-}
-sub postfix { my ($s, $sep) = @_;
-	($s eq '')? '': $s.$sep;
-}
-sub circumfix { my ($s, $sepPre, $sepPost) = @_;
-	postfix(prefix($s, $sepPre), $sepPost)
+	load_db($c)->update($c, $c->{type});
 }
 
 sub dbSearch { my ($c, @queries) = @_;
@@ -260,7 +242,8 @@ sub dbFetch { my ($c, @queries) = @_;
 }
 
 sub dbAddsearch { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{urlextract}, $c->{type});
+	my @searches = load_db($c)->add_search([@queries], $c->{destination},
+		firstDef($c->{id}, $c->{urlextract}), $c->{type});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
@@ -270,7 +253,8 @@ sub dbDeletesearch { my ($c, @ids) = @_;
 		[@searches]). "\n");
 }
 sub dbUpdatesearch { my ($c, @ids) = @_;
-	my @searches = load_db($c)->update_search([@ids], , $c->{destination}, $c->{urlextract});
+	my @searches = load_db($c)->update_search([@ids],
+		$c->{destination}, firstDef($c->{id}, $c->{urlextract}));
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
