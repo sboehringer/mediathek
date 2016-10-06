@@ -13,3 +13,10 @@ wget http://zdfmediathk.sourceforge.net/update-json.xml
 wget -qO- http://www.arte.tv/guide/de/044101-000/360-geo-reportage | tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | xml sel -T -t -m //_:div[@class='col-xs-12']/_:h2/_:section -v .
 # works
 wget -qO- http://www.arte.tv/guide/de/044101-000/360-geo-reportage | tidy --quote-nbsp no --new-inline-tags section -f /dev/null -asxml -utf8 | xml sel -T -t -m '//_:h2[@class="text-thin mb-20"]' -v . -n
+
+#
+#	<p> youtube
+#
+
+youtube-dl --flat-playlist https://www.youtube.com/channel/UCKQ_j0fm3NioMRE3i-1CryA -j
+youtube-dl -sj IAk0Ow5MQU4

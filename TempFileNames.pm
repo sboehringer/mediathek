@@ -3,7 +3,7 @@ require 5.000;
 require Exporter;
 
 @ISA       = qw(Exporter);
-@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &dateReformat &formatTableComponents &formatTable &lcPrefix);
+@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &writeConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &dateReformat &formatTableComponents &formatTable &lcPrefix &prefix &postfix &circumfix);
 
 #@EXPORT_OK = qw($sally @listabob %harry func3);
 
@@ -207,7 +207,9 @@ sub readConfigFile { my ($fileName, $c, @paths) = @_;
 	return $c->{returnPath}
 	? { path => $plistFile->{path}, propertyList => $plist } : $plist;
 }
-
+sub writeConfigFile { my ($path, $config) = @_;
+	writeFile($path, stringFromProperty($config));
+}
 
 sub interpolatedPropertyFromString { my ($s, $hashNames) = @_;
 	return undef() if ($s eq '');
@@ -454,7 +456,8 @@ sub	depthSearchDirBranch { my($path, $c) = @_;
 	my @list = dirList($path, $c->{host});
 	foreach $p (@list) {
 		my $npath = "$path/$p";
-		depthSearchDirBranch($npath, $c) if (-d $npath && !-l $npath);
+		depthSearchDirBranch($npath, $c)
+			if (-d $npath && !-l $npath && !defined(which($npath, $c->{exclusions})));
 		depthSearchDirLeaf($npath, $c);
 	}
 	$c->{depth}--;
@@ -763,32 +766,26 @@ sub pipeStringToCommandSystem { my ($strRef, $cmd, $logLevel)=@_;
 # flags:
 #	maxIterations: for iterate eq 'YES' iterate that often. 0: 2^(bitWidth - 1) iterations
 sub mergeDictToString { my ($hash, $str, $flags)=@_;
-	my $maxIterations = firstDef($flags->{maxIterations}, 20);
+	my $maxIterations = firstDef($flags->{maxIterations}, 100);
 	my @keys = grep { defined($hash->{$_}) } keys(%{$hash});
 	my $doIterate = uc($flags->{iterate}) eq 'YES';
+	my $keysRe = uc($flags->{keysAreREs}) eq 'YES';
 	if (uc($flags->{sortKeys}) eq 'YES' || $doIterate)
-	{	@keys = sort { length($b) <=> length($a); } @keys;
+	{	@keys = sort { length($b) <=> length($a) } @keys;
 	}
 	if (uc($flags->{sortKeysInOrder}) eq 'YES')
-	{	@keys = sort { length($a) <=> length($b); } @keys;
+	{	@keys = sort { $a <=> $b } @keys;
 	}
 	my $str0;
 	do {
 		$str0 = $str;
-		if (uc($flags->{keysAreREs}) eq 'YES')
-		{	foreach $key (@keys)
-			{	$str =~ s/$key/$hash->{$key}/g;
-				# need to start from beginning to retain length order
-				last if ($doIterate && $str ne $str0);
-			}
-		} else {
-			foreach $key (@keys)
-			{	$str=~s/\Q$key\E/$hash->{$key}/g;
-				# need to start from beginning to retain length order
-				last if ($doIterate && $str ne $str0);
-			}
+		foreach $key (@keys)
+		{	if ($keysRe) {	$str =~ s/$key/$hash->{$key}/sg; }
+			else {			$str =~ s/\Q$key\E/$hash->{$key}/sg; }
+			# need to start from beginning to retain length order
+			last if ($doIterate && $str ne $str0);
 		}
-	} while (uc($flags->{iterate}) eq 'YES' && ($str ne $str0) && --$maxIterations);
+	} while ($doIterate && ($str ne $str0) && --$maxIterations);
 	return $str;
 }
 
@@ -807,6 +804,16 @@ sub deepTrimmStr { my($str)=@_;
 sub removeWS { my($str)=@_;	#remove all whitespace inside string
 	$str=~s/\s+//og;
 	return $str;
+}
+
+sub prefix { my ($s, $sep) = @_;
+	($s eq '')? '': $sep.$s;
+}
+sub postfix { my ($s, $sep) = @_;
+	($s eq '')? '': $s.$sep;
+}
+sub circumfix { my ($s, $sepPre, $sepPost) = @_;
+	postfix(prefix($s, $sepPre), $sepPost)
 }
 
 sub lcPrefix { my (@s) = @_;
@@ -1274,14 +1281,15 @@ sub formatTableRows { my ($d, $t, $cols) = @_;
 	} @{$d->{columns}}{@$cols});
 	my @rows = map { my $r = $_;
 		sprintf($fmt, map { my $c = $_;
+			my $f = $d->{columns}{$_}{format};
 			my $v;
 			if (ref($r) eq 'HASH') {
 				$v = $r->{$c};
 			} else {
 				my $code = ref($r)->can($c);
 				$v = $r->$code();
+				$v = $v->$method() if (defined($f->{method}));
 			}
-			my $f = $d->{columns}{$_}{format};
 			my $tr = $Set::tableFormats{$f}{transform};
 			$v = $tr->($v) if (defined($tr));
 			# <p> width
@@ -1310,6 +1318,5 @@ sub formatTable { my ($d, $rows, $cols) = @_;
 sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
 	return strftime($fmtOut, strptime($date, $fmtIn));
 }
-
 
 1;

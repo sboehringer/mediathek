@@ -7,7 +7,7 @@ require	Exporter;
 
 @ISA		= qw(Exporter);
 
-@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &multiply &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &definedDict &firstDef &firstTrue &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces &hashSlice &hashMin &moddiv &modfloor &modround &changeSet &syncSets &hashPrune);
+@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &makeHashPairs &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &multiply &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &definedDict &firstDef &firstTrue &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces &hashSlice &hashMin &moddiv &modfloor &modround &changeSet &syncSets &hashPrune);
 
 use TempFileNames;
 
@@ -297,6 +297,31 @@ sub makeHash { my ($keys, $values, $omitKey)=@_;
 	}
 	return $hash;
 }
+
+# $pairs: array of key/value pairs
+# %o: options
+#	coalesce: coalesce duplicate keys into array of values
+#	recursive (requires coalesce => 1)
+my %makeHashPairsOptions = ( coalesce => 1, recursive => 0 );
+sub makeHashPairs { my ($pairs, %o) = @_;
+	%o = (%makeHashPairsOptions, %o);
+	my @keys = unique(map { $_[0] } @$pairs);
+	my %hash = map {
+		my $key = $_;
+		my @pairsK = grep { $_->[0] == $key } @$pairs;
+		my @valuesK = map { $_->[1] } @pairsK;
+		my %r;
+		if ($o{coalesce}) {
+			%r = ($key => [$o{recursive}? makeHashPairs([@valuesK], $o): @valuesK]);
+		} else {
+			%r = ($key => $valuesK[0]);
+		}
+		%r
+	} @keys;
+	
+	return {%hash};
+}
+
 sub dictWithKeys { my($keys, $value) = @_;
 	my $hash = {};
 	$value = firstDef($value, 0);
@@ -567,13 +592,11 @@ sub writeHeadedTableHandle { my ($fileHandle, $sets, $factorList, $options) = @_
 	print $fileHandle join($sep, ref($sets) eq 'HASH' && defined($sets->{printFactors})?
 		@{$sets->{printFactors}}: @{$factors}),"\n" if (!$options->{noHeader} && defined($factors));
 
-	foreach $data (ref($sets) eq 'ARRAY'? @{$sets}: @{$sets->{list}})
-	{	my $dmy = (ref($data) eq 'ARRAY')? $data: arrayFromKeys($data, $factors);
-		if ($options->{quoteSpace})
-		{
-			foreach $el (@{$dmy})
-			{	$el = '"'.$el.'"' if ($el =~ m{\s}o);
-			}
+	foreach $data (ref($sets) eq 'ARRAY'? @{$sets}: @{$sets->{list}}) {
+		my $dmy = (ref($data) eq 'ARRAY')? $data: arrayFromKeys($data, $factors);
+		# quoting
+		foreach $el (@{$dmy}) {
+			$el = '"'. $el. '"' if (($el =~ m{\s}o && $options->{quoteSpace}) || $el =~ m{$sep}o);
 		}
 		print $fileHandle join($sep, @{$dmy}), "\n";
 	}

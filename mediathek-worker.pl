@@ -12,25 +12,22 @@ use LWP::Simple;
 use POSIX qw(strftime mktime);
 use POSIX::strptime qw(strptime);
 use utf8;
+use PropertyList;
 
 # default options
 $main::d = {
 	config => 'mediathek.cfg', configPaths => [ $ENV{MEDIATHEK_CONFIG} ],
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
-	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
-	keepForDays => 10, acceptDaysBack => 365*3,
-	refreshServers => 0,
-	refreshServersCount => 1,
-	refreshTvitems => 0,
-	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db'
+	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db', 
 };
 # options
 $main::o = [
-	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s',
+	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s', 'id=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
-	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune'
+	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
+	'+iteratesources=s'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -78,7 +75,14 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 
 HELP_TEXT
 
-my $sqlitedb = <<DBSCHEMA;
+my $parsMediathek = stringFromProperty({
+	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
+	keepForDays => 10,
+	refreshServers => 0,
+	refreshServersCount => 1,
+	acceptDaysBack => 365*3,
+});
+my $sqlitedb = <<"DBSCHEMA";
 	CREATE TABLE tv_item (
 		id integer primary key autoincrement,
 		channel text not null,
@@ -88,24 +92,39 @@ my $sqlitedb = <<DBSCHEMA;
 		url text,
 		duration integer,
 		homepage text,
-		UNIQUE(channel, date, title)
+		type integer REFERENCES tv_type(id),
+		UNIQUE(channel, date, title, type)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
 	CREATE INDEX tv_item_title_idx ON tv_item (title);
+	CREATE INDEX tv_item_type_idx ON tv_item (type);
 	CREATE TABLE tv_grep (
 		id integer primary key autoincrement,
 		expression text not null,
 		destination text,
-		xpath text,
+		-- extra information to complete a fetch
+		witness text,
+		type integer REFERENCES tv_type(id) not null,
 		-- ALTER TABLE tv_grep ADD COLUMN destination text;
-		UNIQUE(expression)
+		UNIQUE(type, expression)
 	);
+	CREATE INDEX tv_grep_type_idx ON tv_grep (type);
 	CREATE TABLE tv_recording (
 		id integer primary key autoincrement,
 		recording integer REFERENCES tv_item(id),
+		type integer REFERENCES tv_type(id) not null,
 		UNIQUE(recording)
 	);
+	CREATE INDEX tv_recording_type_idx ON tv_recording (type);
+	CREATE TABLE tv_type (
+		id integer primary key autoincrement,
+		name text not null,
+		parameters text,
+		UNIQUE(name)
+	);
+	INSERT INTO tv_type (name, parameters) values ('mediathek', '$parsMediathek');
+	INSERT INTO tv_type (name, parameters) values ('youtube', '{}');
 DBSCHEMA
 
 %main::TvTableDesc = ( parameters => { width => 79 },
@@ -119,8 +138,9 @@ DBSCHEMA
 %main::TvGrepDesc = ( parameters => { width => 79 },
 	columns => {
 		id => { width => 4, format => '%*s' },
-		expression => { width => -50, format => '%*s' },
-		destination => { width => -20, format => '%*s' },
+		'type.name' => { width => -10, format => '%*s', rename => 'type', keyPath => 'type.name' },
+		expression => { width => -45, format => '%*s' },
+		destination => { width => -15, format => '%*s' },
 		xpath => { width => -10, format => '%*s' },
 	},
 	print => ['id', 'expression', 'destination', 'xpath' ]
@@ -129,7 +149,8 @@ DBSCHEMA
 sub instantiate_db { my ($c) = @_;
 	my $dbfile = "$c->{location}/mediathek.db";
 	return if (-e $dbfile);
-	System("mkdir --parents $c->{location} ; echo '$sqlitedb\n.quit' | sqlite3 $dbfile", 2);
+	System("mkdir --parents $c->{location} ", 2);
+	System("echo ". qs($sqlitedb). "'\n.quit' | sqlite3 $dbfile", 3);
 	#my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile", '', '');
 	#my $sth = $dbh->prepare($sqlitedb);
 	#$sth->execute();
@@ -203,25 +224,7 @@ sub dbPrune { my ($c) = @_;
 
 # <A> no proper quoting of csv output
 sub dbUpdatedb { my ($c, $xml) = @_;
-	load_db($c)->update($c, $xml);
-}
-
-sub dateReformat { my ($date, $fmtIn, $fmtOut) = @_;
-	return strftime($fmtOut, strptime($date, $fmtIn));
-}
-sub hashPrune { my (%h) = @_;
-#	<!> only work in >= 5.20
-#	return %h{grep { $h{$_} ne ''} keys %h};
-	return map { ($_, $h{$_}) } grep { $h{$_} ne ''} keys %h;
-}
-sub prefix { my ($s, $sep) = @_;
-	($s eq '')? '': $sep.$s;
-}
-sub postfix { my ($s, $sep) = @_;
-	($s eq '')? '': $s.$sep;
-}
-sub circumfix { my ($s, $sepPre, $sepPost) = @_;
-	postfix(prefix($s, $sepPre), $sepPost)
+	load_db($c)->update($c, $c->{type});
 }
 
 sub dbSearch { my ($c, @queries) = @_;
@@ -234,7 +237,8 @@ sub dbFetch { my ($c, @queries) = @_;
 }
 
 sub dbAddsearch { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $c->{urlextract});
+	my @searches = load_db($c)->add_search([@queries], $c->{destination},
+		firstDef($c->{id}, $c->{urlextract}), $c->{type});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
@@ -244,13 +248,19 @@ sub dbDeletesearch { my ($c, @ids) = @_;
 		[@searches]). "\n");
 }
 sub dbUpdatesearch { my ($c, @ids) = @_;
-	my @searches = load_db($c)->update_search([@ids], , $c->{destination}, $c->{urlextract});
+	my @searches = load_db($c)->update_search([@ids],
+		$c->{destination}, firstDef($c->{id}, $c->{urlextract}));
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
 
 sub dbAutofetch { my ($c) = @_;
 	load_db($c)->auto_fetch($c->{videolibrary}, $c->{'tidy-inline-tags'});
+}
+
+sub dbIteratesources { my ($c) = @_;
+	Log('Iterate sources', 2);
+	load_db($c)->iterate_sources($c->{iteratesources});	
 }
 
 #main $#ARGV @ARGV %ENV
