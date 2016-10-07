@@ -7,7 +7,7 @@ use MooseX::NonMoose;
 use MooseX::MarkAsMethods;
 
 class My::Schema::Result::TvType {
-	use base qw( DBIx::Class::Core );
+	use base qw{ DBIx::Class::Core };
 	__PACKAGE__->load_components(qw{DynamicSubclass Core});
 	__PACKAGE__->table('tv_type');
 	__PACKAGE__->add_column(qw{id name parameters});
@@ -41,30 +41,34 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 
 class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Base {
 	use TempFileNames;
+	use Set;
 	use Data::Dumper;
 	use utf8;
+	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
 	method fetch() { Log('fetch: youtube'); }
 	method updateChannel($channel, $schema) {
-		my $sep = ':<>:';	# fetch-parse-videolist-json.pl
+		my $sep = ':<>:';	# fetch-parse-youtube.pl
 		my $cmd = './fetch-parse-youtube.pl --fetch https://www.youtube.com/channel/'. $channel->witness;
 		#
 		# <p> database update
 		#
-		# keys as of parse-videolist-json
-		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'duration', 'url_hd', 'url', 'homepage' );
-		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
-		my @skeys = ( 'channel', 'title' );	# search keys
+		# keys as of fetch-parse-youtube; id -> url; date, type manually added
+		my @keys = ( 'url', 'channel', 'title', 'date', 'type' );
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't fetch channel list [$channel]" if (!defined($fh));
-		my $prev = {};
-		my $i = 0;
 		my $icnt = 0;	# insert count
 		my $now = time();
+		my $tv = $schema->resultset('TvItem');
 		while (my $l = <$fh>) {
+			my $item = makeHash(\@keys,
+				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:$M:%S', localtime($now)), $self->id)]);
 			print $l;
+			my $item0 = $tv->find_or_new($item, { key => 'url_unique' });
+			$item0->insert, $icnt++ if (!$item0->in_storage);
 		}
+		Log("Youtube: $icnt items inserted.", 4);
 	}
 	method update($schema) {
 		Log("Updating youtube channels", 3);
@@ -163,7 +167,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 			#print 'exists: '. @items. "\n";
 			my $item = makeHash(\@dbkeys, [@{$this}{@dbkeys}]);
 			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
-			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_unique' });
+			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
 			if (!$item0->in_storage) {
 				$icnt++;
 				$item0->insert;

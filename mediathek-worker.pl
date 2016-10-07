@@ -93,7 +93,8 @@ my $sqlitedb = <<"DBSCHEMA";
 		duration integer,
 		homepage text,
 		type integer REFERENCES tv_type(id),
-		UNIQUE(channel, date, title, type)
+		UNIQUE(channel, date, title, type),
+		UNIQUE(url)
 	);
 	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
