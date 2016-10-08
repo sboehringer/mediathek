@@ -27,13 +27,17 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	use utf8;
 	use PropertyList;
 
-	has 'pars' => ( isa => 'HASH', is => 'rw', lazy => 1, builder => 'builderPars' );
+	has 'pars' => ( isa => 'HashRef', is => 'rw', lazy => 1, builder => 'builderPars' );
 
 	method builderPars() {
-		return propertyFromString($self->parameters());
+		my $dict = propertyFromString($self->parameters());
+		return $dict;
+	}
+	method setParameters(HashRef $newPars) {
+		$self->pars({ %{$self->pars}, %$newPars });
 	}
 	method par(Str $key) {
-		return $self->{pars}{$key};
+		return $self->pars()->{$key};
 	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
@@ -61,7 +65,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		my $icnt = 0;	# insert count
 		my $now = time();
 		my $tv = $schema->resultset('TvItem');
-		while (my $l = <$fh>) {
+		while (my $l = substr(<$fh>, 0, -1)) {
 			my $item = makeHash(\@keys,
 				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:$M:%S', localtime($now)), $self->id)]);
 			print $l;
@@ -86,40 +90,37 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 	use TempFileNames;
 	use Data::Dumper;
 	use utf8;
+	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
 	method fetch() { Log('fetch: mediathek'); }
 
-	method prune(Num $keepForDays = 10) {
+	method prune($schema, Num $keepForDays = 10) {
 		my $now = time();
 		my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
 		my $prune_str = strftime("%Y-%m-%d %H:%M:%S",
 			localtime($now - $keepForDays * 86400));
 		Log("Now: $now_str, pruning older than: $prune_str", 1);
-		my $tv = $self->resultset('TvItem');
+		my $tv = $schema->resultset('TvItem');
 		my $tv_rs = $tv->search_rs({ date => { '<' => $prune_str } });
 		Log('About to delete '. $tv_rs->count. ' items.', 1);
 		$tv_rs->delete();
 	}
 
-	method serverList($c) {
-		# today, yesterday
-		#my ($td, $yd) = (
-		#	strftime("%d_%m", localtime(time())), strftime("%d_%m", localtime(time() - 86400))
-		#);
-		my $serverList = main::meta_get([$c->{serverUrl}], "$c->{location}/servers.xml",
-			refetchAfter => $c->{refreshServers});
+	method serverList() {
+		my $serverList = main::meta_get([$self->par('serverUrl')], $self->par('location'). "/servers.xml",
+			refetchAfter => $self->par('refreshServers'));
 		#my $servers = "cat $serverList | xml sel -T -t -m //URL -v . -n | grep -E '_$td|_$yd'";
 		my @serverList = split(/\n/, `cat $serverList | xml sel -T -t -m //URL -v . -n`);
 		Log('SeverList fetch: '. join("\n", @serverList), 5);
 		return @serverList;
 	}
 
-	method updateWithJson($c, $path) {
+	method updateWithJson($schema, $path) {
 		#
 		# <p> xml parsing of new items
 		#
-		$self->prune($c->{keepForDays});
+		$self->prune($schema, $self->par('keepForDays'));
 		my $sep = ':<>:';	# as of parse-videolist-json.pl
 		my $cmd = 'xzcat '. qs($path). ' | '. './parse-videolist-json.pl --parse -';
 		#
@@ -131,58 +132,39 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
-		my $prev = {};
-		my $i = 0;
-		my $icnt = 0;	# insert count
+		my ($i, $icnt) = (0, 0);
 		my $now = time();
-		while (my $l = <$fh>) {
-			$l = substr($l, 0, -1);
-			my $tv = $self->resultset('TvItem');
+		my $tv = $schema->resultset('TvItem');
+		my $deadline = main::firstDef($self->par('acceptDaysBack'), $self->par('keepForDays')) * 86400;
+		while (my $l = substr(<$fh>, 0, -1)) {
 			if (!(++$i % 1e3)) {
-				$self->resultset('TvItem')->clear_cache();
+				$schema->resultset('TvItem')->clear_cache();
 				Log(sprintf("%3de3th entry", $i/1e3), 4);
 			}
-			my $this = makeHash(\@keys, [split(/$sep/, $l)]);
-			# <p> field carry over
-			$this->{channel} = $prev->{channel} if ($this->{channel} eq '');
-			$this->{topic} = $prev->{topic} if ($this->{topic} eq '');
-			$prev = $this;
-			# <p> skip bogus entries
-			next if (!defined($this->{day}) || $this->{day} eq '' || $this->{time} eq '');
-			$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
-			next if (!defined($this->{date}));
-			next if (!defined($this->{date})
-				|| $this->{date} eq ''
-				|| ($now - mktime(strptime($this->{date}, "%Y-%m-%d %H:%M:%S")))
-					> firstDef($c->{acceptDaysBack}, $c->{keepForDays}) * 86400);
-			$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
-				if (defined($this->{duration}));
-			# <!> url_hd interpretation unclear
-			#if ($this->{url_hd} ne '') {
-			#	# url_hd only contains 
-			#	$this->{url} = firstTrue($this->{url_hd}, $this->{url});
-			#}
-
-			#my @items = $tv->search(makeHash(\@skeys, [@{$this}{@skeys}]));
-			#print 'exists: '. @items. "\n";
-			my $item = makeHash(\@dbkeys, [@{$this}{@dbkeys}]);
+			my $item = makeHash(\@dbkeys, [split(/$sep/, $l)]);
+			next if (($now - mktime(strptime($item->{date}, "%Y-%m-%d %H:%M:%S"))) > $deadline);
 			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
 			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
-			if (!$item0->in_storage) {
-				$icnt++;
-				$item0->insert;
-			}
-			#my $i = $tv->find($item, { key => 'channel_date_title_unique' });
-			#print "Defined: ". defined($i). "\n";
-			#$i = $tv->create(makeHash(\@dbkeys, [@{$this}{@dbkeys}])) if (!defined($i));
-			#print $this->{title}, " ", $this->{channel}, " ", $this->{date}, "\n";
-			#Log($i->id. " ".$i->title. " ". $i->channel. " ". $i->date, 6);
+			$item0->insert, $icnt++ if (!$item0->in_storage);
 		}
 		$fh->close();
 		Log(sprintf('Added %d items.', $icnt), 3);
 	}
-	# <A> no proper quoting of csv output
 	method update($schema) {
+		my @serverList = $self->serverList();
+ 		Log("Number of servers to probe: ". $self->par('refreshServersCount'), 5);
+Log(Dumper($self->pars), 5);
+
+ 		$self->updateWithJson($schema, main::meta_get([$serverList[0]],
+ 			$self->par('location')."/database-json.xz",
+ 				refetchAfter => $self->par('refreshTvitems'), seq => 0))
+ 					if (!$self->par('refreshServersCount'));
+ 
+		for (my $i = 0; $i < $self->par('refreshServersCount'); $i++) {
+			my $dbFile = main::meta_get([@serverList], $self->par('location'). "/database-json-$i.xz",
+				refetchAfter => $self->par('refreshTvitems'), seq => 0);
+			$self->updateWithJson($schema, $dbFile);
+		}
 	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -202,9 +184,10 @@ class My::Schema {
 
 	method update($c, $type) {
 		if (!defined($type)) {
-			$self->iterate_sources('update', $self);
+			$self->iterate_sources($c, 'update', $self);
 		} else {
 			my $t = $self->resultset('TvType')->search( { name => $type } )->next;
+			$t->setParameters($c);
 			$t->update($self);
 		}
 	}
@@ -292,10 +275,11 @@ class My::Schema {
 		}
 	}
 
-	method iterate_sources(Str $method, @args) {
+	method iterate_sources(HashRef $c, Str $method, @args) {
 		my @types = ($self->resultset('TvType')->all);
 		Log("# TvTypes == ". int(@types), 5);
 		for my $q ( @types ) {
+			$q->setParamters($c);
 			Log("Name: ". $q->$method(@args), 5);
 		}
 	}

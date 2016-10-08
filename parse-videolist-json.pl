@@ -34,11 +34,13 @@ sub jsonArray { my ($s) = @_;
 }
 
 my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url_HD", "Url", "Website" );
+my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "web" );
 sub parse { my ($o) = @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
 	die "could not open:$o->{parse}" if (!defined($fh));
 	my @colIndeces;
 
+	my ($this, $prev) = ({}, {});
 	while (<$fh>) {
 		# determine indeces of relevant columns
 		# <!> rely on last line to contain column names
@@ -47,7 +49,28 @@ sub parse { my ($o) = @_;
 			next;
 		}
 		next if (!/^\s*"X"\s*:\s*\[(.*)\]/);
+
 		#my @cols = map { s/\n/ /sog } ($1 =~ m{(?:($stringRE)(?:\s*,\s*)?)}sog);
+		my $this = makeHash(\@colIndeces, [jsonArray($1))[@colIndeces]]);
+
+		# <p> field carry over
+		$this->{channel} = $prev->{channel} if ($this->{channel} eq '');
+		$this->{topic} = $prev->{topic} if ($this->{topic} eq '');
+		$prev = $this;
+
+		# <p> skip bogus entries
+		next if (!defined($this->{day}) || $this->{day} eq '' || $this->{time} eq '');
+		$this->{date} = join('-', reverse(split(/\./, $this->{day}))). ' '. $this->{time};
+		next if (!defined($this->{date}) || $this->{date} eq '');
+
+		$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
+			if (defined($this->{duration}));
+		# <!> url_hd interpretation unclear
+		#if ($this->{url_hd} ne '') {
+		#	# url_hd only contains 
+		#	$this->{url} = firstTrue($this->{url_hd}, $this->{url});
+		#}
+
 		print join($o->{sep}, (jsonArray($1))[@colIndeces]). "\n";
 	}
 	$fh->close();
