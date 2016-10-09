@@ -64,7 +64,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		my $now = time();
 		my $tv = $self->resultset('TvItem');
 		while (my $l = substr(<$fh>, 0, -1)) {
-			my $item = makeHash(\@keys,
+			my $item = main::makeHash(\@keys,
 				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:$M:%S', localtime($now)), $self->id)]);
 			print $l;
 			my $item0 = $tv->find_or_new($item, { key => 'url_unique' });
@@ -88,7 +88,10 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 	use TempFileNames;
 	use Data::Dumper;
 	use utf8;
-	use POSIX qw{strftime};
+	use POSIX qw{mktime strftime};
+	use POSIX::strptime qw(strptime);
+	use warnings;
+
 	__PACKAGE__->add_column(qw{id name parameters});
 
 	method fetch() { Log('fetch: mediathek'); }
@@ -124,10 +127,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		#
 		# <p> database update
 		#
-		# keys as of parse-videolist-json
-		my @keys = ('channel', 'topic', 'title',  'day', 'time', 'duration', 'url_hd', 'url', 'homepage' );
 		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
-		my @skeys = ( 'channel', 'title' );	# search keys
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
 		my ($i, $icnt) = (0, 0);
@@ -135,15 +135,16 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my $tv = $self->resultset('TvItem');
 		my $deadline = main::firstDef($self->par('acceptDaysBack'), $self->par('keepForDays')) * 86400;
 		while (my $l = substr(<$fh>, 0, -1)) {
+			no warnings;
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
 				Log(sprintf("%3de3th entry", $i/1e3), 4);
 			}
-			my $item = makeHash(\@dbkeys, [split(/$sep/, $l)]);
+			my $item = {%{main::makeHash(\@dbkeys, [split(/$sep/, $l)])}, type => $self-> id};
 			next if (($now - mktime(strptime($item->{date}, "%Y-%m-%d %H:%M:%S"))) > $deadline);
 			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
 			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
-			$item0->insert, $icnt++ if (!$item0->in_storage);
+			($item0->insert, $icnt++) if (!$item0->in_storage);
 		}
 		$fh->close();
 		Log(sprintf('Added %d items.', $icnt), 3);
@@ -172,7 +173,6 @@ class My::Schema {
 	use Set;
 	use Data::Dumper;
 	use POSIX qw(strftime mktime ceil);
-	use POSIX::strptime qw(strptime);
 	use utf8;
 
 	method greetings() {

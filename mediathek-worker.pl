@@ -92,7 +92,7 @@ my $sqlitedb = <<"DBSCHEMA";
 		url text,
 		duration integer,
 		homepage text,
-		type integer REFERENCES tv_type(id),
+		type integer REFERENCES tv_type(id) not null,
 		UNIQUE(channel, date, title, type),
 		UNIQUE(url)
 	);
