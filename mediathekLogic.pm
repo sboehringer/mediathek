@@ -33,12 +33,10 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		my $dict = propertyFromString($self->parameters());
 		return $dict;
 	}
-	method setParameters(HashRef $newPars) {
-		$self->pars({ %{$self->pars}, %$newPars });
-	}
-	method par(Str $key) {
-		return $self->pars()->{$key};
-	}
+	method setParameters(HashRef $newPars) { $self->pars({ %{$self->pars}, %$newPars }); }
+	method par(Str $key) { return $self->pars()->{$key}; }
+	method schema() { return $self->result_source->schema; }
+	method resultset(Str $name) { return $self->schema->resultset($name); }
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -52,7 +50,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 	__PACKAGE__->add_column(qw{id name parameters});
 
 	method fetch() { Log('fetch: youtube'); }
-	method updateChannel($channel, $schema) {
+	method updateChannel($channel) {
 		my $sep = ':<>:';	# fetch-parse-youtube.pl
 		my $cmd = './fetch-parse-youtube.pl --fetch https://www.youtube.com/channel/'. $channel->witness;
 		#
@@ -64,7 +62,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		die "couldn't fetch channel list [$channel]" if (!defined($fh));
 		my $icnt = 0;	# insert count
 		my $now = time();
-		my $tv = $schema->resultset('TvItem');
+		my $tv = $self->resultset('TvItem');
 		while (my $l = substr(<$fh>, 0, -1)) {
 			my $item = makeHash(\@keys,
 				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:$M:%S', localtime($now)), $self->id)]);
@@ -74,12 +72,12 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		}
 		Log("Youtube: $icnt items inserted.", 4);
 	}
-	method update($schema) {
+	method update() {
 		Log("Updating youtube channels", 3);
-		my @channels = $schema->resultset('TvGrep')->search( { type => $self->id } )->all;
+		my @channels = $self->resultset('TvGrep')->search( { type => $self->id } )->all;
 		for my $q ( @channels ) {
 			Log("Fetching channel: ". $q->witness, 3);
-			$self->updateChannel($q, $schema);
+			$self->updateChannel($q);
 		}
 	}
 
@@ -95,13 +93,13 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 
 	method fetch() { Log('fetch: mediathek'); }
 
-	method prune($schema, Num $keepForDays = 10) {
+	method prune(Num $keepForDays = 10) {
 		my $now = time();
 		my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
 		my $prune_str = strftime("%Y-%m-%d %H:%M:%S",
 			localtime($now - $keepForDays * 86400));
 		Log("Now: $now_str, pruning older than: $prune_str", 1);
-		my $tv = $schema->resultset('TvItem');
+		my $tv = $self->resultset('TvItem');
 		my $tv_rs = $tv->search_rs({ date => { '<' => $prune_str } });
 		Log('About to delete '. $tv_rs->count. ' items.', 1);
 		$tv_rs->delete();
@@ -116,11 +114,11 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		return @serverList;
 	}
 
-	method updateWithJson($schema, $path) {
+	method updateWithJson($path) {
 		#
 		# <p> xml parsing of new items
 		#
-		$self->prune($schema, $self->par('keepForDays'));
+		$self->prune($self->par('keepForDays'));
 		my $sep = ':<>:';	# as of parse-videolist-json.pl
 		my $cmd = 'xzcat '. qs($path). ' | '. './parse-videolist-json.pl --parse -';
 		#
@@ -134,11 +132,11 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		die "couldn't read '$path'" if (!defined($fh));
 		my ($i, $icnt) = (0, 0);
 		my $now = time();
-		my $tv = $schema->resultset('TvItem');
+		my $tv = $self->resultset('TvItem');
 		my $deadline = main::firstDef($self->par('acceptDaysBack'), $self->par('keepForDays')) * 86400;
 		while (my $l = substr(<$fh>, 0, -1)) {
 			if (!(++$i % 1e3)) {
-				$schema->resultset('TvItem')->clear_cache();
+				$self->resultset('TvItem')->clear_cache();
 				Log(sprintf("%3de3th entry", $i/1e3), 4);
 			}
 			my $item = makeHash(\@dbkeys, [split(/$sep/, $l)]);
@@ -150,12 +148,11 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		$fh->close();
 		Log(sprintf('Added %d items.', $icnt), 3);
 	}
-	method update($schema) {
+	method update() {
 		my @serverList = $self->serverList();
  		Log("Number of servers to probe: ". $self->par('refreshServersCount'), 5);
-Log(Dumper($self->pars), 5);
 
- 		$self->updateWithJson($schema, main::meta_get([$serverList[0]],
+ 		$self->updateWithJson(main::meta_get([$serverList[0]],
  			$self->par('location')."/database-json.xz",
  				refetchAfter => $self->par('refreshTvitems'), seq => 0))
  					if (!$self->par('refreshServersCount'));
@@ -163,7 +160,7 @@ Log(Dumper($self->pars), 5);
 		for (my $i = 0; $i < $self->par('refreshServersCount'); $i++) {
 			my $dbFile = main::meta_get([@serverList], $self->par('location'). "/database-json-$i.xz",
 				refetchAfter => $self->par('refreshTvitems'), seq => 0);
-			$self->updateWithJson($schema, $dbFile);
+			$self->updateWithJson($dbFile);
 		}
 	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
@@ -184,11 +181,12 @@ class My::Schema {
 
 	method update($c, $type) {
 		if (!defined($type)) {
-			$self->iterate_sources($c, 'update', $self);
+			$self->iterate_sources('setParameters', $c);
+			$self->iterate_sources('update');
 		} else {
 			my $t = $self->resultset('TvType')->search( { name => $type } )->next;
 			$t->setParameters($c);
-			$t->update($self);
+			$t->update();
 		}
 	}
 
