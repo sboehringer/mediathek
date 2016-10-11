@@ -80,12 +80,15 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 			$self->updateChannel($q);
 		}
 	}
+	method auto_fetch() {
+	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
 class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::Base {
 	use TempFileNames;
+	use Set;
 	use Data::Dumper;
 	use utf8;
 	use POSIX qw{mktime strftime};
@@ -133,17 +136,19 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my ($i, $icnt) = (0, 0);
 		my $now = time();
 		my $tv = $self->resultset('TvItem');
-		my $deadline = main::firstDef($self->par('acceptDaysBack'), $self->par('keepForDays')) * 86400;
+		my $deadline = $now - $self->par('keepForDays') * 86400;
 		while (my $l = substr(<$fh>, 0, -1)) {
 			no warnings;
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
 				Log(sprintf("%3de3th entry", $i/1e3), 4);
 			}
-			my $item = {%{main::makeHash(\@dbkeys, [split(/$sep/, $l)])}, type => $self-> id};
-			next if (($now - mktime(strptime($item->{date}, "%Y-%m-%d %H:%M:%S"))) > $deadline);
+			my $item = {%{makeHash(\@dbkeys, [split(/$sep/, $l)])}, type => $self-> id};
+			my $itemTime = mktime(strptime($item->{date}, "%Y-%m-%d %H:%M:%S"));
+			next if ($itemTime < $deadline);
 			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
-			my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
+			#my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
+			my $item0 = $tv->find_or_new($item);
 			($item0->insert, $icnt++) if (!$item0->in_storage);
 		}
 		$fh->close();
@@ -164,6 +169,29 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 			$self->updateWithJson($dbFile);
 		}
 	}
+
+	method auto_fetch() {
+		Log("Autofetching mediathek...", 5);
+		my $destination = $self->par('videolibrary');
+		my $tags = $self->par('tidy-inline-tags');
+		if (!-e $destination) {
+			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
+			return;
+		}
+		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
+			for my $r ( ($self->schema->search($q->expression)) ) {
+				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
+					{ key => 'recording_unique' });
+				if (!$record->in_storage()) {
+					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $tags);
+					$record->insert() if (!$ret);
+					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
+				} else {
+					Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
+				}
+			}
+		}
+	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -179,16 +207,34 @@ class My::Schema {
 		Log("Hello world");
 	}
 
-	method update($c, $type) {
+	method iterate_sources(@methods) {
+		if (ref($methods[0]) ne 'ARRAY') {
+			@methods = ([@methods]);
+		}
+		my @types = ($self->resultset('TvType')->all);
+		Log("# TvTypes == ". int(@types), 5);
+		my @r = map { my $t = $_;
+			for my $m (@methods) {
+				my ($method, @args) = ($m->[0], @$m[1..$#$m]);
+				Log("Calling $method on ". $_->name, 5);
+				$t->$method(@args)
+			}
+		} @types;
+		return @r;
+	}
+
+	method call($method, $c, $type) {
 		if (!defined($type)) {
-			$self->iterate_sources('setParameters', $c);
-			$self->iterate_sources('update');
+			$self->iterate_sources(['setParameters', $c], [$method]);
 		} else {
 			my $t = $self->resultset('TvType')->search( { name => $type } )->next;
 			$t->setParameters($c);
-			$t->update();
+			$t->$method();
 		}
 	}
+
+	method update($c, $type) { $self->call('update', $c, $type); }
+	method auto_fetch($c, $type) { $self->call('auto_fetch', $c, $type); }
 
 	method add_search($queries, $destination = '', $witness = '', $type = 'mediathek') {
 		my $query = $self->resultset('TvGrep');
@@ -252,35 +298,6 @@ class My::Schema {
 			$r->fetchTo($destination, $urlextract, $tags);
 		}
 	}
-
-	method auto_fetch(Str $destination, $tags) {
-		if (!-e $destination) {
-			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
-			return;
-		}
-		for my $q ( ($self->resultset('TvGrep')->all) ) {
-			for my $r ( ($self->search($q->expression)) ) {
-				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
-					{ key => 'recording_unique' });
-				if (!$record->in_storage()) {
-					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $tags);
-					$record->insert() if (!$ret);
-					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
-				} else {
-					Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
-				}
-			}
-		}
-	}
-
-	method iterate_sources(HashRef $c, Str $method, @args) {
-		my @types = ($self->resultset('TvType')->all);
-		Log("# TvTypes == ". int(@types), 5);
-		for my $q ( @types ) {
-			$q->setParamters($c);
-			Log("Name: ". $q->$method(@args), 5);
-		}
-	}
 }
 
 class My::Schema::Result::TvItem {
@@ -333,4 +350,64 @@ class My::Schema::Result::TvItem {
 	}
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
+}
+
+class My::Schema::Result::TvItem {
+	use base qw{ DBIx::Class::Core };
+	__PACKAGE__->load_components(qw{DynamicSubclass Core});
+	__PACKAGE__->table('tv_type');
+	__PACKAGE__->add_column(qw{id type});
+	__PACKAGE__->typecast_map(type => {	# <!> hardcoded id's
+		1 => 'My::Schema::Result::TvItem::Mediathek',
+		2 => 'My::Schema::Result::TvItem::Youtube'
+	});
+
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
+	use TempFileNames;
+	use Data::Dumper;
+	use utf8;
+	use PropertyList;
+
+	has 'pars' => ( isa => 'HashRef', is => 'rw', lazy => 1, builder => 'builderPars' );
+
+	method builderPars() {
+		my $dict = propertyFromString($self->parameters());
+		return $dict;
+	}
+	method setParameters(HashRef $newPars) {
+		$self->pars({ %{$self->pars}, %$newPars });
+		return $self;
+	}
+	method par(Str $key) { return $self->pars()->{$key}; }
+	method schema() { return $self->result_source->schema; }
+	method resultset(Str $name) { return $self->schema->resultset($name); }
+
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Base {
+	use TempFileNames;
+	use Set;
+	use Data::Dumper;
+	use utf8;
+	use POSIX qw{strftime};
+	__PACKAGE__->add_column(qw{id name parameters});
+
+	method fetch() { Log('fetch: youtube'); }
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+}
+
+class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::Base {
+	use TempFileNames;
+	use Set;
+	use Data::Dumper;
+	use utf8;
+	use POSIX qw{strftime};
+	__PACKAGE__->add_column(qw{id name parameters});
+
+	method fetch() { Log('fetch: Mediathek'); }
+	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }

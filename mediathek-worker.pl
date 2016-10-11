@@ -80,7 +80,6 @@ my $parsMediathek = stringFromProperty({
 	keepForDays => 10,
 	refreshServers => 0,
 	refreshServersCount => 1,
-	acceptDaysBack => 365*3,
 });
 my $sqlitedb = <<"DBSCHEMA";
 	CREATE TABLE tv_item (
@@ -222,21 +221,19 @@ sub meta_get { my ($urls, $o, %c) = @_;
 sub dbPrune { my ($c) = @_;
 	load_db($c)->prune();
 }
-
-# <A> no proper quoting of csv output
 sub dbUpdatedb { my ($c, $xml) = @_;
 	load_db($c)->update($c, $c->{type});
 }
-
+sub dbAutofetch { my ($c) = @_;
+	load_db($c)->auto_fetch($c, $c->{type});
+}
 sub dbSearch { my ($c, @queries) = @_;
 	my @r = load_db($c)->search(@queries);
 	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
 }
-
 sub dbFetch { my ($c, @queries) = @_;
 	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract}, $c->{'tidy-inline-tags'});
 }
-
 sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination},
 		firstDef($c->{id}, $c->{urlextract}), $c->{type});
@@ -253,10 +250,6 @@ sub dbUpdatesearch { my ($c, @ids) = @_;
 		$c->{destination}, firstDef($c->{id}, $c->{urlextract}));
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
-}
-
-sub dbAutofetch { my ($c) = @_;
-	load_db($c)->auto_fetch($c->{videolibrary}, $c->{'tidy-inline-tags'});
 }
 
 sub dbIteratesources { my ($c) = @_;

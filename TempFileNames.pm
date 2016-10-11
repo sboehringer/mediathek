@@ -17,6 +17,7 @@ use IO::File;
 use PropertyList;
 use Set;
 use POSIX;
+use POSIX::strptime qw(strptime);
 use Fcntl ':flock';	# testService
 use Fcntl qw(&F_WRLCK &F_SETLKW &F_UNLCK &F_SETLK);	#lockFile
 #require 'sys/fcntl.ph';	#lockFile
