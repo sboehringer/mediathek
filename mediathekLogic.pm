@@ -24,6 +24,7 @@ class My::Schema::Result::TvType {
 class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	use TempFileNames;
 	use Data::Dumper;
+	use Set;
 	use utf8;
 	use PropertyList;
 
@@ -37,6 +38,29 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	method par(Str $key) { return $self->pars()->{$key}; }
 	method schema() { return $self->result_source->schema; }
 	method resultset(Str $name) { return $self->schema->resultset($name); }
+
+	method search($queries, $extraTerms) {
+		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
+		my $tv_item = $self->resultset('TvItem');
+		my @r = map { my $query = $_;
+			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
+			my %query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
+				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
+				$k = 'time(date)' if ($k eq 'time');
+				my $isCmp = defined(which($modifier, ['>', '<']));
+				my @q = $likeKeys->{$k}
+				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
+				: ($k, $isCmp? { $modifier, $v }: $v);
+				@q
+			} keys %terms;
+			my %queryF = (%query, type => $self->id, defined($extraTerms)? %$extraTerms: {});
+			Log(Dumper(\%query), 5);
+print(Dumper(\%queryF));
+			my @items = $tv_item->search({ %queryF });
+			@items
+		} @$queries;
+		return @r;
+	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -81,6 +105,12 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		}
 	}
 	method auto_fetch() {
+		my @channels = $self->resultset('TvGrep')->search( { type => $self->id } )->all;
+		for my $q ( @channels ) {
+			Log("Fetching channel: ". $q->witness, 3);
+			my @items = $self->search([$q->expression], { channel => $q->witness });
+print(Dumper([@items]));
+		}
 	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
@@ -262,27 +292,6 @@ class My::Schema {
 			);
 		}
 		return $query->all;
-	}
-
-	method search(@queries) {
-		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
-		my $tv_item = $self->resultset('TvItem');
-		my @r = map { my $query = $_;
-			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
-			my %query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
-				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
-				$k = 'time(date)' if ($k eq 'time');
-				my $isCmp = defined(which($modifier, ['>', '<']));
-				my @q = $likeKeys->{$k}
-				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
-				: ($k, $isCmp? { $modifier, $v }: $v);
-				@q
-			} keys %terms;
-			main::Log(main::Dumper(\%query), 5);
-			my @items = $tv_item->search(\%query);
-			@items
-		} @queries;
-		return @r;
 	}
 
 	method fetch(Str $destination, @queries) {
