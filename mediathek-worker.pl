@@ -19,11 +19,14 @@ $main::d = {
 	config => 'mediathek.cfg', configPaths => [ $ENV{MEDIATHEK_CONFIG} ],
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
-	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db', 
+	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
+
+	youtubeMaxCount => 10,
 };
 # options
 $main::o = [
 	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s', 'id=s',
+	'youtubeMaxCount=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',

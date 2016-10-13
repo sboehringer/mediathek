@@ -108,8 +108,8 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		my @channels = $self->resultset('TvGrep')->search( { type => $self->id } )->all;
 		for my $q ( @channels ) {
 			Log("Fetching channel: ". $q->witness, 3);
-			my @items = $self->search([$q->expression], { channel => $q->witness });
-print(Dumper([@items]));
+			my @items = ($self->search([$q->expression], { channel => $q->witness }))
+				[0 .. $self->par('youtubeMaxCount')];
 		}
 	}
 
