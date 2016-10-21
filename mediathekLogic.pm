@@ -44,19 +44,18 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
 			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
-			my %query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
+			my @query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
 				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
 				$k = 'time(date)' if ($k eq 'time');
 				my $isCmp = defined(which($modifier, ['>', '<']));
-				my @q = $likeKeys->{$k}
+				my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
 				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
 				: ($k, $isCmp? { $modifier, $v }: $v);
-				@q
+				{ %q }
 			} keys %terms;
-			my %queryF = (%query, type => $self->id, defined($extraTerms)? %$extraTerms: {});
-			Log(Dumper(\%query), 5);
+			my @queryF = (@query, { type => $self->id }, defined($extraTerms)? @$extraTerms: ());
 print(Dumper(\%queryF));
-			my @items = $tv_item->search({ %queryF });
+			my @items = $tv_item->search({ -and => \@queryF });
 			@items
 		} @$queries;
 		return @r;
@@ -98,17 +97,17 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 	}
 	method update() {
 		Log("Updating youtube channels", 3);
-		my @channels = $self->resultset('TvGrep')->search( { type => $self->id } )->all;
+		my @channels = $self->resultset('TvGrep')->search()->all;
 		for my $q ( @channels ) {
 			Log("Fetching channel: ". $q->witness, 3);
 			$self->updateChannel($q);
 		}
 	}
 	method auto_fetch() {
-		my @channels = $self->resultset('TvGrep')->search( { type => $self->id } )->all;
+		my @channels = $self->resultset('TvGrep')->search()->all;
 		for my $q ( @channels ) {
 			Log("Fetching channel: ". $q->witness, 3);
-			my @items = ($self->search([$q->expression], { channel => $q->witness }))
+			my @items = ($self->search([$q->expression], [{ channel => $q->witness }]))
 				[0 .. $self->par('youtubeMaxCount')];
 		}
 	}
