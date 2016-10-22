@@ -40,6 +40,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	method resultset(Str $name) { return $self->schema->resultset($name); }
 
 	method search($queries, $extraTerms) {
+		$extraTerms = [] if (!defined($extraTerms));
 		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
@@ -53,9 +54,12 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 				: ($k, $isCmp? { $modifier, $v }: $v);
 				{ %q }
 			} keys %terms;
-			my @queryF = (@query, { type => $self->id }, defined($extraTerms)? @$extraTerms: ());
-print(Dumper(\%queryF));
-			my @items = $tv_item->search({ -and => \@queryF });
+			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
+			my @queryF = (@query,
+				{ type => $self->id }, @$extraTerms);
+			my @items = $tv_item->search({ -and => \@queryF },
+				{ join => 'tv_recording', rows => $self->par('Nfetch') });
+			Log("Number of items to be fetched: ". @items, 2);
 			@items
 		} @$queries;
 		return @r;

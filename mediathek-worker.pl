@@ -21,12 +21,12 @@ $main::d = {
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
 
-	youtubeMaxCount => 10,
+	Nfetch => 10, doRefetch => 0,
 };
 # options
 $main::o = [
 	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s', 'id=s',
-	'youtubeMaxCount=s',
+	'Nfetch=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
@@ -116,10 +116,9 @@ my $sqlitedb = <<"DBSCHEMA";
 	CREATE TABLE tv_recording (
 		id integer primary key autoincrement,
 		recording integer REFERENCES tv_item(id),
-		type integer REFERENCES tv_type(id) not null,
 		UNIQUE(recording)
 	);
-	CREATE INDEX tv_recording_type_idx ON tv_recording (type);
+	CREATE INDEX tv_recording_recording_idx ON tv_recording (recording);
 	CREATE TABLE tv_type (
 		id integer primary key autoincrement,
 		name text not null,
