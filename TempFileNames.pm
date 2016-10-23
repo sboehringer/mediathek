@@ -1237,7 +1237,11 @@ sub testIfMount { my ($path, $doFollowLink) = @_;
 sub qw { $_[0] =~ s{"}{\\"}sog; $_[0] }
 sub qsB { $_[0] =~ s{\\}{\\\\}sog; return $_[0]; }
 sub qsQ { return qw(qsB($_[0])) }
-sub qs { my $p = qsB($_[0]); $p =~ s{'}{'\\''}sog; return "'$p'"; }
+sub qs { my $p = $_[0];
+	$p = qsB($p);
+	$p =~ s{'}{'\\''}sog;
+	return "'$p'";
+}
 sub prefix { my ($s, $prefix) = @_;
 	return $s eq ''? '': "$prefix$s";
 }
@@ -1267,12 +1271,32 @@ sub prefix { my ($s, $prefix) = @_;
 	}
 );
 
+sub traverseRaw { my ($v, $keys) = @_;
+	my @keys = @$keys;
+	return $v if (!int(@keys));
+	my $key = shift(@keys);
+
+	if (ref($v) eq 'HASH') {
+		$v = $v->{$key};
+	} else {
+		my $code = ref($v)->can($key);
+		$v = $v->$code();
+		#Log("Col: $c; value:$v; Class: ". ref($v).": ". ref($r). " Method: $m, ", 2);
+	}
+	return traverseRaw($v, [@keys]);
+}
+
+sub traverse { my ($v, $kp) = @_;
+	my @keys = split(/[.]/, $kp);
+	return traverseRaw($v, [@keys]);
+}
+
 sub formatTableHeader { my ($d, $cols) = @_;
 	#my $fmt = join(' ', map { $_->{format} } @{$d->{columns}}{@$cols});
 	#$fmt =~ s{%0?\*\.?\d?[df]}{%*s}sog;
 	my $fmt = join(' ', ('%*s') x int(@$cols));
 	my $header = sprintf($fmt, map {
-		( -abs($d->{columns}{$_}{width}), ucfirst($_) )
+		( -abs($d->{columns}{$_}{width}), ucfirst(firstDef($d->{columns}{$_}{rename}, $_)) )
 	} @$cols);
 	return $header;
 }
@@ -1282,19 +1306,14 @@ sub formatTableRows { my ($d, $t, $cols) = @_;
 	} @{$d->{columns}}{@$cols});
 	my @rows = map { my $r = $_;
 		sprintf($fmt, map { my $c = $_;
-			my $f = $d->{columns}{$_}{format};
-			my $v;
-			if (ref($r) eq 'HASH') {
-				$v = $r->{$c};
-			} else {
-				my $code = ref($r)->can($c);
-				$v = $r->$code();
-				$v = $v->$method() if (defined($f->{method}));
-			}
+			my $col = $d->{columns}{$c};
+			my $f = $col->{format};
+			my $m = $col->{method};
+			my $v = traverse($r, firstDef($col->{keyPath}, $c));
 			my $tr = $Set::tableFormats{$f}{transform};
 			$v = $tr->($v) if (defined($tr));
 			# <p> width
-			my $w = $d->{columns}{$_}{width};
+			my $w = $col->{width};
 			my $tw = $Set::tableFormats{$f}{width};
 			$w = $tw->($w) if (defined($tw));
 			($w, $v)

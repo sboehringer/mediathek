@@ -65,6 +65,26 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		return @r;
 	}
 
+	method fetchPars() { return {}; }
+	method constraints($q) { return []; }
+
+	method auto_fetch() {
+		Log("Autofetching type". $self->id. "...", 5);
+		my $destination = $self->par('videolibrary');
+		my $fetchPars = $self->fetchPars;
+		if (!-e $destination) {
+			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
+			return;
+		}
+		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
+			for my $r ( ($self->search([$q->expression], $self->constraints($q))) ) {
+				my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $fetchPars);
+				$self->resultset('TvRecording')->create({ recording => $r->id }) if (!$ret);
+				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
+			}
+		}
+	}
+
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -107,14 +127,15 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 			$self->updateChannel($q);
 		}
 	}
-	method auto_fetch() {
-		my @channels = $self->resultset('TvGrep')->search()->all;
-		for my $q ( @channels ) {
-			Log("Fetching channel: ". $q->witness, 3);
-			my @items = ($self->search([$q->expression], [{ channel => $q->witness }]))
-				[0 .. $self->par('youtubeMaxCount')];
-		}
-	}
+	method constraints($q) { return [{ channel => $q->witness }]; }
+# 	method auto_fetch() {
+# 		my @channels = $self->resultset('TvGrep')->search()->all;
+# 		for my $q ( @channels ) {
+# 			Log("Fetching channel: ". $q->witness, 3);
+# 			my @items = ($self->search([$q->expression], [{ channel => $q->witness }]))
+# 				[0 .. $self->par('youtubeMaxCount')];
+# 		}
+# 	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -129,8 +150,6 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 	use warnings;
 
 	__PACKAGE__->add_column(qw{id name parameters});
-
-	method fetch() { Log('fetch: mediathek'); }
 
 	method prune(Num $keepForDays = 10) {
 		my $now = time();
@@ -202,29 +221,10 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 			$self->updateWithJson($dbFile);
 		}
 	}
-
-	method auto_fetch() {
-		Log("Autofetching mediathek...", 5);
-		my $destination = $self->par('videolibrary');
-		my $tags = $self->par('tidy-inline-tags');
-		if (!-e $destination) {
-			Log(sprintf('VideoLibrary "%s" does not exist.', $destination), 4);
-			return;
-		}
-		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
-			for my $r ( ($self->schema->search($q->expression)) ) {
-				my $record = $self->resultset('TvRecording')->find_or_new({ recording => $r->id },
-					{ key => 'recording_unique' });
-				if (!$record->in_storage()) {
-					my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $tags);
-					$record->insert() if (!$ret);
-					Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
-				} else {
-					Log(sprintf('Recording [%s] already recorded.', $r->title), 5);
-				}
-			}
-		}
+	method fetchPars() { return {
+		fmt => '%D_%T%U.%E', xpath => $self->par('xpath'), tags => $self->par('tidy-inline-tags')};
 	}
+
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -313,58 +313,6 @@ class My::Schema {
 }
 
 class My::Schema::Result::TvItem {
-	use TempFileNames;
-	use Data::Dumper;
-	use utf8;
-
-	my %templates = (
-		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
-		http => 'mplayer -nolirc URL -dumpstream -dumpfile OUTPUT'
-	);
-	method commandWithOutput(Str $destPath) {
-		Log("URL: ". $self->url(), 2);
-		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
-		my $command = mergeDictToString({
-			URL => $self->url,
-			OUTPUT => qs($destPath)
-		}, $templates{$protocol});
-		#my $command = $self->command();
-		#$command = '-r '. $self->url() if (length($command) < 16);
-		return $command;
-	}
-
-	method annotation($xpath = '', $tags) {
-		return '' if (!defined($xpath) || $xpath eq '');
-		my $urlq = main::qs($self->homepage());
-		my $xpathq = main::qs($xpath);
-		my $urlcmd = "wget -qO- $urlq | "
-			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
-			.circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
-			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
-		my $annotation = trimmStr(`$urlcmd`);
-		Log("Annotation command: $urlcmd", 2);
-		Log("Annotation: $annotation", 2);
-		return $annotation;
-	}
-
-	# default format: day_title
-	method fetchTo($dest, $xpath = '', $tags = [], $fmt = '%D_%T%U.%E') {
-		my $destPath = $dest. '/'. mergeDictToString({
-			'%T' => $self->title,
-			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
-			'%E' => splitPathDict($self->url)->{extension},
-			'%U' => defined($xpath)? prefix($self->annotation($xpath, $tags), '_'): ''
-		}, $fmt, { iterative => 'no' });
-		Log("Fetching ". $self->title. " to ". $destPath, 1);
-		Mkpath($dest, 5);
-
-		return System($self->commandWithOutput($destPath), 2);
-	}
-
-	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
-}
-
-class My::Schema::Result::TvItem {
 	use base qw{ DBIx::Class::Core };
 	__PACKAGE__->load_components(qw{DynamicSubclass Core});
 	__PACKAGE__->table('tv_type');
@@ -408,7 +356,11 @@ class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Ba
 	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method fetch() { Log('fetch: youtube'); }
+	method fetchTo($dest, $witness, $pars) {
+		Log('fetch: youtube: '. $self->url. ' --> '. $dest. '/'. $self->title, 5);
+		my $cmd = 'youtube-dl '. $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
+		System($cmd, 3);
+	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -420,6 +372,53 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method fetch() { Log('fetch: Mediathek'); }
-	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
+	my %templates = (
+		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
+		http => 'mplayer -nolirc URL -dumpstream -dumpfile OUTPUT'
+	);
+	method commandWithOutput(Str $destPath) {
+		Log("URL: ". $self->url(), 2);
+		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
+		my $command = mergeDictToString({
+			URL => $self->url,
+			OUTPUT => qs($destPath)
+		}, $templates{$protocol});
+		#my $command = $self->command();
+		#$command = '-r '. $self->url() if (length($command) < 16);
+		return $command;
+	}
+
+	method annotation($xpath = '', $tags) {
+		return '' if (!defined($xpath) || $xpath eq '');
+		my $urlq = main::qs($self->homepage());
+		my $xpathq = main::qs($xpath);
+		my $urlcmd = "wget -qO- $urlq | "
+			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
+			.circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
+			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
+		my $annotation = trimmStr(`$urlcmd`);
+		Log("Annotation command: $urlcmd", 2);
+		Log("Annotation: $annotation", 2);
+		return $annotation;
+	}
+
+	# default format: day_title
+	method fetchTo($dest, $witness, $pars) {
+		my $xpath = firstDef($witness, $pars->{xpath});
+		my $tags = $pars->{tags};
+		my $fmt = $pars->{fmt};
+		my $destPath = $dest. '/'. mergeDictToString({
+			'%T' => $self->title,
+			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
+			'%E' => splitPathDict($self->url)->{extension},
+			'%U' => defined($xpath)? prefix($self->annotation($xpath, $tags), '_'): ''
+		}, $fmt, { iterative => 'no' });
+		Log("Fetching ". $self->title. " to ". $destPath, 1);
+		Mkpath($dest, 5);
+
+		return System($self->commandWithOutput($destPath), 2);
+	}
+
+	__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 }
+
