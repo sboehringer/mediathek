@@ -230,11 +230,12 @@ sub dbAutofetch { my ($c) = @_;
 	load_db($c)->auto_fetch($c, $c->{type});
 }
 sub dbSearch { my ($c, @queries) = @_;
-	my @r = load_db($c)->search(@queries);
+	#my @r = load_db($c)->search(@queries);
+	my @r = load_db($c)->search($c, $c->{type}, @queries);
 	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
 }
 sub dbFetch { my ($c, @queries) = @_;
-	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0], $c->{urlextract}, $c->{'tidy-inline-tags'});
+	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0]);
 }
 sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination},

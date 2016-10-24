@@ -39,13 +39,13 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	method schema() { return $self->result_source->schema; }
 	method resultset(Str $name) { return $self->schema->resultset($name); }
 
-	method search($queries, $extraTerms) {
-		$extraTerms = [] if (!defined($extraTerms));
+	method search($queries, $extraTerms = []) {
+		#$extraTerms = [] if (!defined($extraTerms));
 		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
-			my %terms = map { /([^:]+):(.*)/, ($1, $2) } split(/;/, $query);
-			my @query = map { my ($k, $v, $modifier) = ($_, $terms{$_});
+			my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
+			my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
 				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
 				$k = 'time(date)' if ($k eq 'time');
 				my $isCmp = defined(which($modifier, ['>', '<']));
@@ -53,7 +53,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
 				: ($k, $isCmp? { $modifier, $v }: $v);
 				{ %q }
-			} keys %terms;
+			} @terms;
 			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
@@ -112,7 +112,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		my $tv = $self->resultset('TvItem');
 		while (my $l = substr(<$fh>, 0, -1)) {
 			my $item = main::makeHash(\@keys,
-				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:$M:%S', localtime($now)), $self->id)]);
+				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:%M:%S', localtime($now)), $self->id)]);
 			print $l;
 			my $item0 = $tv->find_or_new($item, { key => 'url_unique' });
 			$item0->insert, $icnt++ if (!$item0->in_storage);
@@ -241,33 +241,36 @@ class My::Schema {
 	}
 
 	method iterate_sources(@methods) {
-		if (ref($methods[0]) ne 'ARRAY') {
-			@methods = ([@methods]);
-		}
+		@methods = ([@methods]) if (ref($methods[0]) ne 'ARRAY');
 		my @types = ($self->resultset('TvType')->all);
 		Log("# TvTypes == ". int(@types), 5);
 		my @r = map { my $t = $_;
+			my @r;
 			for my $m (@methods) {
 				my ($method, @args) = ($m->[0], @$m[1..$#$m]);
 				Log("Calling $method on ". $_->name, 5);
-				$t->$method(@args)
+				@r = $t->$method(@args)
 			}
+			@r
 		} @types;
 		return @r;
 	}
 
 	method call($method, $c, $type) {
+		$method = [$method] if (ref($method) ne 'ARRAY');
 		if (!defined($type)) {
-			$self->iterate_sources(['setParameters', $c], [$method]);
+			$self->iterate_sources(['setParameters', $c], $method);
 		} else {
 			my $t = $self->resultset('TvType')->search( { name => $type } )->next;
 			$t->setParameters($c);
-			$t->$method();
+			my ($m, @args) = ($method->[0], @$method[1 .. $#$method]);
+			$t->$m(@args);
 		}
 	}
 
 	method update($c, $type) { $self->call('update', $c, $type); }
 	method auto_fetch($c, $type) { $self->call('auto_fetch', $c, $type); }
+	method search($c, $type, @queries) { $self->call(['search', [@queries]], $c, $type); }
 
 	method add_search($queries, $destination = '', $witness = '', $type = 'mediathek') {
 		my $query = $self->resultset('TvGrep');
