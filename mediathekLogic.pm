@@ -127,7 +127,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 			$self->updateChannel($q);
 		}
 	}
-	method constraints($q) { return [{ channel => $q->witness }]; }
+#	method constraints($q) { return [{ channel => $q->witness }]; }
 # 	method auto_fetch() {
 # 		my @channels = $self->resultset('TvGrep')->search()->all;
 # 		for my $q ( @channels ) {

@@ -25,8 +25,8 @@ $main::d = {
 };
 # options
 $main::o = [
-	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s', 'id=s',
-	'Nfetch=s',
+	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s',
+	'Nfetch=s', 'fetchParameters=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
@@ -238,8 +238,10 @@ sub dbFetch { my ($c, @queries) = @_;
 	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0]);
 }
 sub dbAddsearch { my ($c, @queries) = @_;
-	my @searches = load_db($c)->add_search([@queries], $c->{destination},
-		firstDef($c->{id}, $c->{urlextract}), $c->{type});
+	my $witness = stringFromProperty(dict2defined({
+		defined($c->{fetchParameters})? %{propertyFromString('{'.$c->{fetchParameters}.'}')}: (),
+		(urlextract => $c->{urlextract}) }));
+	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $witness, $c->{type});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
