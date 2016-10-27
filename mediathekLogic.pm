@@ -41,15 +41,15 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 
 	method queryFromExpression($query) {
 		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
-		my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
+		my @terms = map { /([^:]+):(.*)/; [($1, $2)] } grep { $_ ne '' } split(/;/, $query);
 		my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
 			($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
 			$k = 'time(date)' if ($k eq 'time');
 			my $isCmp = defined(which($modifier, ['>', '<']));
-			my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
+			my $q = { ($likeKeys->{$k} && $v =~ m{[%]}os)
 			? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
-			: ($k, $isCmp? { $modifier, $v }: $v);
-			{ %q }
+			: ($k, $isCmp? { $modifier, $v }: $v) };
+			$q
 		} @terms;
 		return @query;
 	}
@@ -58,16 +58,6 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		#$extraTerms = [] if (!defined($extraTerms));
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
-# 			my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
-# 			my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
-# 				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
-# 				$k = 'time(date)' if ($k eq 'time');
-# 				my $isCmp = defined(which($modifier, ['>', '<']));
-# 				my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
-# 				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
-# 				: ($k, $isCmp? { $modifier, $v }: $v);
-# 				{ %q }
-# 			} @terms;
 			my @query = $self->queryFromExpression($query);
 			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
 			my @queryF = (@query,
@@ -115,8 +105,9 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 
 	method fetch() { Log('fetch: youtube'); }
 	method updateChannel($channel) {
-		my $ct = {$self->queryFromExpression($channel->expression)}->{channel};
-		Log("Channel update:$ct", 5);
+		my $ct = [grep { my @k = keys %{$_}; $k[0] eq 'channel' }
+			$self->queryFromExpression($channel->expression)]->[0]{channel};
+		Log("Channel update: $ct", 3);
 		my $url = 'https://www.youtube.com'. (substr($ct, 0, 1) eq '/'? $ct: ('/channel/'. $ct));
 		my $cmd = './fetch-parse-youtube.pl --fetch '. $url;
 		#
@@ -144,7 +135,6 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		Log("Updating youtube channels", 3);
 		my @channels = $self->resultset('TvGrep')->search()->all;
 		for my $q ( @channels ) {
-			Log("Fetching channel: ". $q->witness, 3);
 			$self->updateChannel($q);
 		}
 	}
@@ -314,7 +304,6 @@ class My::Schema {
 	method update_search($ids, $destination = '', $witness) {
 		my $query = $self->resultset('TvGrep');
 		for my $id (@$ids) {
-print(Dumper({ hashPrune(%{{ destination => $destination, witness => $witness }})}));
 			$query->search({id => $id})->update(
 				{ hashPrune(%{{ destination => $destination, witness => $witness }}) }
 			);
@@ -383,6 +372,7 @@ class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Ba
 
 	method fetchTo($dest, $witness, $pars) {
 		Log('fetch: youtube: '. $self->url. ' --> '. $dest. '/'. $self->title, 5);
+print(Dumper($pars));
 		my $cmd = 'youtube-dl '. $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
 		System($cmd, 3);
 	}

@@ -39,9 +39,13 @@ sub extractString {
 sub Chop { substr($_[0], 0, -1) }
 
 my @colSel = ('id', 'channel', 'title' );
+my $prefixChannel = 'https://www.youtube.com/channel/';
+my $prefix = 'https://www.youtube.com/';
 sub fetch { my ($o) = @_;
 	my $url = $o->{fetch};
-	my $channel = splitPathDict($url)->{file};
+	#my $channel = splitPathDict($url)->{file};
+	my $channel = (substr($url, 0, length($prefixChannel)) eq $prefixChanel)
+		? substr($url, length($prefixChannel)): substr($url, length($prefix));
 	my $cmd = "youtube-dl -j --get-title --flat-playlist $url";
 	my $r = System($cmd, 2, undef, { returnStdout => 'YES' } );
 	my @lines = split("\n", $r->{output});
