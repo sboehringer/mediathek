@@ -39,21 +39,36 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	method schema() { return $self->result_source->schema; }
 	method resultset(Str $name) { return $self->schema->resultset($name); }
 
+	method queryFromExpression($query) {
+		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
+		my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
+		my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
+			($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
+			$k = 'time(date)' if ($k eq 'time');
+			my $isCmp = defined(which($modifier, ['>', '<']));
+			my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
+			? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
+			: ($k, $isCmp? { $modifier, $v }: $v);
+			{ %q }
+		} @terms;
+		return @query;
+	}
+
 	method search($queries, $extraTerms = []) {
 		#$extraTerms = [] if (!defined($extraTerms));
-		my $likeKeys = dictWithKeys(['channel', 'topic', 'title'], 1);
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
-			my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
-			my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
-				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
-				$k = 'time(date)' if ($k eq 'time');
-				my $isCmp = defined(which($modifier, ['>', '<']));
-				my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
-				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
-				: ($k, $isCmp? { $modifier, $v }: $v);
-				{ %q }
-			} @terms;
+# 			my @terms = map { /([^:]+):(.*)/; [($1, $2)] } split(/;/, $query);
+# 			my @query = map { my ($k, $v, $modifier) = ($_->[0], $_->[1]);
+# 				($modifier, $v) = ($v =~ m{^([!<>]?)(.*)}sog);
+# 				$k = 'time(date)' if ($k eq 'time');
+# 				my $isCmp = defined(which($modifier, ['>', '<']));
+# 				my %q = ($likeKeys->{$k} && $v =~ m{[%]}os)
+# 				? ($k, { ($modifier eq '!'? 'not like': 'like'), $v })
+# 				: ($k, $isCmp? { $modifier, $v }: $v);
+# 				{ %q }
+# 			} @terms;
+			my @query = $self->queryFromExpression($query);
 			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
@@ -78,7 +93,8 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		}
 		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
 			for my $r ( ($self->search([$q->expression], $self->constraints($q))) ) {
-				my $ret = $r->fetchTo($destination. '/'. $q->destination, $q->witness, $fetchPars);
+				my $pars = $q->witness eq ''? {}: propertyFromString($q->witness);
+				my $ret = $r->fetchTo($destination. '/'. $q->destination, $pars, $fetchPars);
 				$self->resultset('TvRecording')->create({ recording => $r->id }) if (!$ret);
 				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 			}
@@ -94,15 +110,19 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 	use Data::Dumper;
 	use utf8;
 	use POSIX qw{strftime};
+	use warnings;
 	__PACKAGE__->add_column(qw{id name parameters});
 
 	method fetch() { Log('fetch: youtube'); }
 	method updateChannel($channel) {
-		my $sep = ':<>:';	# fetch-parse-youtube.pl
-		my $cmd = './fetch-parse-youtube.pl --fetch https://www.youtube.com/channel/'. $channel->witness;
+		my $ct = {$self->queryFromExpression($channel->expression)}->{channel};
+		Log("Channel update:$ct", 5);
+		my $url = 'https://www.youtube.com'. (substr($ct, 0, 1) eq '/'? $ct: ('/channel/'. $ct));
+		my $cmd = './fetch-parse-youtube.pl --fetch '. $url;
 		#
 		# <p> database update
 		#
+		my $sep = ':<>:';	# fetch-parse-youtube.pl
 		# keys as of fetch-parse-youtube; id -> url; date, type manually added
 		my @keys = ( 'url', 'channel', 'title', 'date', 'type' );
 		my $fh = IO::File->new("$cmd |");
@@ -110,10 +130,11 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 		my $icnt = 0;	# insert count
 		my $now = time();
 		my $tv = $self->resultset('TvItem');
+		no warnings;
 		while (my $l = substr(<$fh>, 0, -1)) {
 			my $item = main::makeHash(\@keys,
 				[(split(/$sep/, $l), strftime('%Y-%m-%d %H:%M:%S', localtime($now)), $self->id)]);
-			print $l;
+			#print $l;
 			my $item0 = $tv->find_or_new($item, { key => 'url_unique' });
 			$item0->insert, $icnt++ if (!$item0->in_storage);
 		}
@@ -277,7 +298,7 @@ class My::Schema {
 		my $t = $self->resultset('TvType')->search( { name => $type } )->next;
 		Log("Type: $type", 2);
 		for my $q (@$queries) { $query->create(
-			{ main::hashPrune(%{{expression => $q,
+			{ hashPrune(%{{expression => $q,
 				destination => $destination, witness => $witness, type => $t->id }}) }
 		); }
 		return $self->resultset('TvGrep')->search({}, { prefetch => 'type'})->all;
@@ -290,11 +311,12 @@ class My::Schema {
 		return $query->all;
 	}
 
-	method update_search($ids, $destination = '', $xpath = '') {
+	method update_search($ids, $destination = '', $witness) {
 		my $query = $self->resultset('TvGrep');
 		for my $id (@$ids) {
+print(Dumper({ hashPrune(%{{ destination => $destination, witness => $witness }})}));
 			$query->search({id => $id})->update(
-				{ main::hashPrune(%{{ destination => $destination, xpath => $xpath }}) }
+				{ hashPrune(%{{ destination => $destination, witness => $witness }}) }
 			);
 		}
 		return $query->all;

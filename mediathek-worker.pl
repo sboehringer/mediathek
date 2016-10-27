@@ -110,7 +110,7 @@ my $sqlitedb = <<"DBSCHEMA";
 		witness text,
 		type integer REFERENCES tv_type(id) not null,
 		-- ALTER TABLE tv_grep ADD COLUMN destination text;
-		UNIQUE(type, expression)
+		UNIQUE(type, expression, witness)
 	);
 	CREATE INDEX tv_grep_type_idx ON tv_grep (type);
 	CREATE TABLE tv_recording (
@@ -237,11 +237,14 @@ sub dbSearch { my ($c, @queries) = @_;
 sub dbFetch { my ($c, @queries) = @_;
 	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0]);
 }
-sub dbAddsearch { my ($c, @queries) = @_;
-	my $witness = stringFromProperty(dict2defined({
+sub witnessFromConfig { my ($c) = @_;
+	my $wdict = dict2defined({
 		defined($c->{fetchParameters})? %{propertyFromString('{'.$c->{fetchParameters}.'}')}: (),
-		(urlextract => $c->{urlextract}) }));
-	my @searches = load_db($c)->add_search([@queries], $c->{destination}, $witness, $c->{type});
+		(urlextract => $c->{urlextract}) });
+	return (%$wdict) == 0? undef: stringFromProperty($wdict);
+}
+sub dbAddsearch { my ($c, @queries) = @_;
+	my @searches = load_db($c)->add_search([@queries], $c->{destination}, witnessFromConfig($c), $c->{type});
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
@@ -251,8 +254,7 @@ sub dbDeletesearch { my ($c, @ids) = @_;
 		[@searches]). "\n");
 }
 sub dbUpdatesearch { my ($c, @ids) = @_;
-	my @searches = load_db($c)->update_search([@ids],
-		$c->{destination}, firstDef($c->{id}, $c->{urlextract}));
+	my @searches = load_db($c)->update_search([@ids], $c->{destination}, witnessFromConfig($c));
 	print(formatTable(firstDef($c->{searchTableFormatting}{$c->{searchTable}}, \%TvGrepDesc),
 		[@searches]). "\n");
 }
