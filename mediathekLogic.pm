@@ -84,7 +84,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
 			for my $r ( ($self->search([$q->expression], $self->constraints($q))) ) {
 				my $pars = $q->witness eq ''? {}: propertyFromString($q->witness);
-				my $ret = $r->fetchTo($destination. '/'. $q->destination, $pars, $fetchPars);
+				my $ret = $r->fetchTo($destination. '/'. $q->destination, {%$fetchPars, %$pars });
 				$self->resultset('TvRecording')->create({ recording => $r->id }) if (!$ret);
 				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 			}
@@ -318,10 +318,10 @@ class My::Schema {
 		}
 	}
 
-	method fetchSingle(Str $destination, Str $query, $urlextract, $tags) {
+	method fetchSingle(Str $destination, Str $query, $pars) {
 		my @r = $self->search( ($query) );
 		for my $r (@r) {
-			$r->fetchTo($destination, $urlextract, $tags);
+			$r->fetchTo($destination, $pars);
 		}
 	}
 }
@@ -370,10 +370,12 @@ class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Ba
 	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method fetchTo($dest, $witness, $pars) {
+	method fetchTo($dest, $pars) {
+		my %parMap = ( extractAudio => '--extract-audio' );
 		Log('fetch: youtube: '. $self->url. ' --> '. $dest. '/'. $self->title, 5);
 print(Dumper($pars));
-		my $cmd = 'youtube-dl '. $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
+		my $youtubeParsBin = join(' ', map { $parMap{$_} } grep { $pars->{$_} } keys %$pars);
+		my $cmd = "youtube-dl $youtubeParsBin ". $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
 		System($cmd, 3);
 	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );

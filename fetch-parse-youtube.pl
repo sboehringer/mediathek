@@ -45,7 +45,7 @@ sub fetch { my ($o) = @_;
 	my $url = $o->{fetch};
 	#my $channel = splitPathDict($url)->{file};
 	my $channel = (substr($url, 0, length($prefixChannel)) eq $prefixChanel)
-		? substr($url, length($prefixChannel)): substr($url, length($prefix));
+		? substr($url, length($prefixChannel)): substr($url, length($prefix) - 1);
 	my $cmd = "youtube-dl -j --get-title --flat-playlist $url";
 	my $r = System($cmd, 2, undef, { returnStdout => 'YES' } );
 	my @lines = split("\n", $r->{output});
