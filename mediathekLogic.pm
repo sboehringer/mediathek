@@ -373,7 +373,6 @@ class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Ba
 	method fetchTo($dest, $pars) {
 		my %parMap = ( extractAudio => '--extract-audio' );
 		Log('fetch: youtube: '. $self->url. ' --> '. $dest. '/'. $self->title, 5);
-print(Dumper($pars));
 		my $youtubeParsBin = join(' ', map { $parMap{$_} } grep { $pars->{$_} } keys %$pars);
 		my $cmd = "youtube-dl $youtubeParsBin ". $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
 		System($cmd, 3);
