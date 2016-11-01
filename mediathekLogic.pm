@@ -82,6 +82,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 			return;
 		}
 		for my $q ( ($self->resultset('TvGrep')->search({ type => $self->id })) ) {
+			Log("Fetching expression: ". $q->expression, 3);
 			for my $r ( ($self->search([$q->expression], $self->constraints($q))) ) {
 				my $pars = $q->witness eq ''? {}: propertyFromString($q->witness);
 				my $ret = $r->fetchTo($destination. '/'. $q->destination, {%$fetchPars, %$pars });
@@ -147,6 +148,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 # 				[0 .. $self->par('youtubeMaxCount')];
 # 		}
 # 	}
+	method fetchPars() { return { fmt => '%(stitle)s.%(ext)s' }; }
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -232,9 +234,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 			$self->updateWithJson($dbFile);
 		}
 	}
-	method fetchPars() { return {
-		fmt => '%D_%T%U.%E', xpath => $self->par('xpath'), tags => $self->par('tidy-inline-tags')};
-	}
+	method fetchPars() { return { fmt => '%D_%T%U.%E' }; }
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
@@ -344,6 +344,7 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 	use Data::Dumper;
 	use utf8;
 	use PropertyList;
+	use Set;
 
 	has 'pars' => ( isa => 'HashRef', is => 'rw', lazy => 1, builder => 'builderPars' );
 
@@ -359,6 +360,28 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 	method schema() { return $self->result_source->schema; }
 	method resultset(Str $name) { return $self->schema->resultset($name); }
 
+	method annotation($pars) {
+		return '' if (!defined($pars->{urlextract}) || $pars->{urlextract} eq '');
+		my $urlcmd = "xml.pl --wget ". qs($self->homepage()). " --tidy -m ". qs($pars->{urlextract});
+		my $annotation = trimmStr(`$urlcmd`);
+		Log("Annotation command: $urlcmd", 2);
+		Log("Annotation: $annotation", 2);
+		return $annotation;
+	}
+
+	method fetchTo($dest, $pars) {
+		my $fmt = $pars->{fmt};
+		my $destPath = $dest. '/'. mergeDictToString({
+			'%T' => $self->title,
+			'%D' => dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
+			'%E' => splitPathDict($self->url)->{extension},
+			'%U' => $self->annotation($pars)
+		}, $fmt, { iterative => 'no' });
+		Log("Fetching ". $self->title. " to ". $destPath, 1);
+		Mkpath($dest, 5);
+		$self->fetchToPath($destPath, $pars);
+	}
+
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
 
@@ -370,11 +393,11 @@ class My::Schema::Result::TvItem::Youtube extends My::Schema::Result::TvItem::Ba
 	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method fetchTo($dest, $pars) {
+	method fetchToPath($destPath, $pars) {
 		my %parMap = ( extractAudio => '--extract-audio' );
-		Log('fetch: youtube: '. $self->url. ' --> '. $dest. '/'. $self->title, 5);
+		Log('fetch: youtube: '. $self->url. ' --> '. $destPath. '[title: '. $self->title. ']', 5);
 		my $youtubeParsBin = join(' ', map { $parMap{$_} } grep { $pars->{$_} } keys %$pars);
-		my $cmd = "youtube-dl $youtubeParsBin ". $self->url. ' -o '.qs($dest). '/'. qs('%(title)s.%(ext)s');
+		my $cmd = "youtube-dl $youtubeParsBin ". $self->url. ' -o '.qs($destPath);
 		System($cmd, 3);
 	}
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
@@ -392,7 +415,9 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
 		http => 'mplayer -nolirc URL -dumpstream -dumpfile OUTPUT'
 	);
-	method commandWithOutput(Str $destPath) {
+
+	# default format: day_title
+	method fetchToPath($destPath, $pars) {
 		Log("URL: ". $self->url(), 2);
 		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
 		my $command = mergeDictToString({
@@ -401,38 +426,7 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 		}, $templates{$protocol});
 		#my $command = $self->command();
 		#$command = '-r '. $self->url() if (length($command) < 16);
-		return $command;
-	}
-
-	method annotation($xpath = '', $tags) {
-		return '' if (!defined($xpath) || $xpath eq '');
-		my $urlq = main::qs($self->homepage());
-		my $xpathq = main::qs($xpath);
-		my $urlcmd = "wget -qO- $urlq | "
-			.'tidy --quote-nbsp no -f /dev/null -asxml -utf8 '
-			.circumfix(join(',', defined($tags)? @$tags: ()), '--new-inline-tags ', ' | ')
-			."xml sel -N w=http://www.w3.org/1999/xhtml -T -t -m $xpathq -v . -n | perl -pe 's/\n//g'";
-		my $annotation = trimmStr(`$urlcmd`);
-		Log("Annotation command: $urlcmd", 2);
-		Log("Annotation: $annotation", 2);
-		return $annotation;
-	}
-
-	# default format: day_title
-	method fetchTo($dest, $witness, $pars) {
-		my $xpath = firstDef($witness, $pars->{xpath});
-		my $tags = $pars->{tags};
-		my $fmt = $pars->{fmt};
-		my $destPath = $dest. '/'. mergeDictToString({
-			'%T' => $self->title,
-			'%D' => main::dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
-			'%E' => splitPathDict($self->url)->{extension},
-			'%U' => defined($xpath)? prefix($self->annotation($xpath, $tags), '_'): ''
-		}, $fmt, { iterative => 'no' });
-		Log("Fetching ". $self->title. " to ". $destPath, 1);
-		Mkpath($dest, 5);
-
-		return System($self->commandWithOutput($destPath), 2);
+		return System($command, 2);
 	}
 
 	__PACKAGE__->meta->make_immutable(inline_constructor => 0);

@@ -3,7 +3,7 @@ require 5.000;
 require Exporter;
 
 @ISA       = qw(Exporter);
-@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &writeConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &dateReformat &formatTableComponents &formatTable &lcPrefix &prefix &postfix &circumfix &slurpToTemp);
+@EXPORT    = qw(&tempFileName &removeTempFiles &readCommand &readFile &writeFile &scanDir &copyTree &searchOrphanedFiles &removeEmptySubdirs &dirList &dirListPattern &dirListDeep &fileList &FileList &searchOutputPattern &normalizedPath &relativePath &quoteRegex &uniqFileName &readStdin &restoreRedirect &redirectInOut &germ2ascii &appendStringToPath &pipeStringToCommand &pipeStringToCommandSystem &mergeDictToString &mapTr &mapS $DONT_REMOVE_TEMP_FILES &readFileHandle &trimmStr &deepTrimmStr &removeWS &fileLength &processList &pidsForWordsPresentAbsent &initLog &Log &cmdNm &splitPath &resourcePath &resourcePathesOfType &splitPathDict &progressPrint &percentagePrint &firstFile &firstFileLocation &readFileFirstLocation &allowUniqueProgramInstanceOnly &allowUniqueProgramInstanceOnly &write2Command &ipAddress &packDir &unpackDir &System $YES $NO &interpolatedPlistFromPath &GetOptionsStandard &StartStandardScript &callTriggersFromOptions &doLogOnly &interpolatedPropertyFromString &existsOnHost &existsFile &mergePdfs &SystemWithInputOutput &depthSearchDir &diskUsage &searchMissingFiles &whichFilesInTree &setLogOnly &readConfigFile &writeConfigFile &statDict &Stat &findDir &tempEdit &Mkpath &Mkdir &Rename &Rmdir &Unlink &Move &Symlink &removeBrokenLinks &testService &testIfMount &qs &qsQ &prefix &dateReformat &formatTableComponents &formatTable &lcPrefix &prefix &postfix &circumfix &slurpToTemp &slurpPipeToTemp);
 
 #@EXPORT_OK = qw($sally @listabob %harry func3);
 
@@ -1343,6 +1343,16 @@ sub slurpToTemp {
 	my @lines = <>;
 	my $tf = tempFileName("/tmp/perl_$ENV{USER}/slurp_pl", undef, { doTouch => 'YES' });
 	writeFile($tf, join("\n", @lines));
+	return $tf;
+}
+
+sub slurpPipeToTemp { my ($cmd) = @_;
+	$fh = new IO::File;
+    return undef if (!$fh->open("$cmd |"));
+	my @lines = <$fh>;
+	my $tf = tempFileName("/tmp/perl_$ENV{USER}/slurp_pl", undef, { doTouch => 'YES' });
+	writeFile($tf, join("\n", @lines));
+	$fh->close;
 	return $tf;
 }
 
