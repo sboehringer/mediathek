@@ -148,7 +148,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 # 				[0 .. $self->par('youtubeMaxCount')];
 # 		}
 # 	}
-	method fetchPars() { return { fmt => '%(stitle)s.%(ext)s' }; }
+	method fetchPars() { return { fmt => '%(title)s.%(ext)s' }; }
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );
 }
