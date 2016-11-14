@@ -4,7 +4,7 @@ This project is a command line equivalent to the Mediathekview project on source
 
 == Version ==
 
-This is version 1.0.
+This is the current development version from the master branch. Youtube scraping has recently been introduced but not yet documented. The stable version is 1.1 available from the releases (without youtube support).
 
 == License ==
 
