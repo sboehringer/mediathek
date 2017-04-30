@@ -39,7 +39,7 @@ sub jsonArray { my ($s) = @_;
 my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url HD", "Url", "Website" );
 my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "homepage" );
 my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
-my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 1024);
+my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 2048);
 sub parse { my ($o) =  @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
 	die "could not open:$o->{parse}" if (!defined($fh));
@@ -55,6 +55,7 @@ sub parse { my ($o) =  @_;
 
 	while ($buf =~ m{"X":}so) {
 		($m, $buf) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*)\](.*)/}so);
+		#print("Match: ". $m. "\nBuffer: ". $buf. "\n");
 
 		#my @cols = map { s/\n/ /sog } ($1 =~ m{(?:($stringRE)(?:\s*,\s*)?)}sog);
 		my $this = makeHash(\@colDf, [(jsonArray($m))[@colIndeces]]);
@@ -80,7 +81,7 @@ sub parse { my ($o) =  @_;
 		print join($o->{sep}, @{$this}{@dbkeys}). "\n";
 		if (length($buf) < $readLength) {
 			$fh->read($readBf, $readLength);
-			$buf = $r. $readBf;
+			$buf .= $readBf;
 		}
 	}
 	$fh->close();
