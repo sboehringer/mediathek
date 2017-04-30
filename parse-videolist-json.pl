@@ -40,12 +40,12 @@ my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url HD", "U
 my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "homepage" );
 my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
 my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 1024);
-sub parse { my ($o) = @_;
+sub parse { my ($o) =  @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
 	die "could not open:$o->{parse}" if (!defined($fh));
 	my @colIndeces;
 
-	my ($this, $prev, $buf, $readBf) = ({}, {});
+	my ($this, $prev, $buf, $readBf, $m) = ({}, {});
 	$fh->read($buf, $readLength);
 	# determine indeces of relevant columns
 	die "No header found" if (!($buf =~ m/^(.*)Filmliste"\s*:\s*\[("Sender"(?:[^[]*|\[.*?\])*)\](.*)/));
@@ -54,14 +54,14 @@ sub parse { my ($o) = @_;
 	$buf = $3. $readBf;
 
 	while ($buf =~ m{"X":}so) {
-		my ($m, $r) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*)\](.*)/}so);
+		($m, $buf) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*)\](.*)/}so);
 
 		#my @cols = map { s/\n/ /sog } ($1 =~ m{(?:($stringRE)(?:\s*,\s*)?)}sog);
 		my $this = makeHash(\@colDf, [(jsonArray($m))[@colIndeces]]);
 
 		# <p> field carry over
 		$this->{channel} = $prev->{channel} if ($this->{channel} eq '');
-		$this->{topic} = $prev->{topic} if ($this->{topic} eq '');
+		$this ->{topic} = $prev->{topic} if ($this->{topic} eq '');
 		$prev = $this;
 
 		# <p> skip bogus entries
@@ -78,8 +78,10 @@ sub parse { my ($o) = @_;
 		#}
 
 		print join($o->{sep}, @{$this}{@dbkeys}). "\n";
-		$fh->read($readBf, $readLength);
-		$buf = $r. $readBf;
+		if (length($buf) < $readLength) {
+			$fh->read($readBf, $readLength);
+			$buf = $r. $readBf;
+		}
 	}
 	$fh->close();
 }
