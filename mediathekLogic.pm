@@ -191,7 +191,8 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		#
 		$self->prune($self->par('keepForDays'));
 		my $sep = ':<>:';	# as of parse-videolist-json.pl
-		my $cmd = 'xzcat '. qs($path). ' | '. './parse-videolist-json.pl --parse -';
+		my $cmd = 'xzcat '. qs($path). ' | '. './parse-videolist-json.pl --parse - --logLevel '
+			. $TempFileNames::__verbosity;
 		#
 		# <p> database update
 		#

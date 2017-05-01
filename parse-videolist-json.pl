@@ -45,7 +45,7 @@ sub parse { my ($o) =  @_;
 	die "could not open:$o->{parse}" if (!defined($fh));
 	my @colIndeces;
 
-	my ($this, $prev, $buf, $readBf, $m) = ({}, {});
+	my ($this, $prev, $i, $buf, $readBf, $m, $r) = ({}, {}, 0);
 	$fh->read($buf, $readLength);
 	# determine indeces of relevant columns
 	die "No header found" if (!($buf =~ m/^(.*)Filmliste"\s*:\s*\[("Sender"(?:[^[]*|\[.*?\])*)\](.*)/));
@@ -54,7 +54,11 @@ sub parse { my ($o) =  @_;
 	$buf = $3. $readBf;
 
 	while ($buf =~ m{"X":}so) {
-		($m, $buf) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*)\](.*)/}so);
+		if (length($buf) < $readLength) {
+			$fh->read($readBf, $readLength);
+			$buf .= $readBf;
+		}
+		($m, $buf) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*?)\](.*)}so);
 		#print("Match: ". $m. "\nBuffer: ". $buf. "\n");
 
 		#my @cols = map { s/\n/ /sog } ($1 =~ m{(?:($stringRE)(?:\s*,\s*)?)}sog);
@@ -79,10 +83,7 @@ sub parse { my ($o) =  @_;
 		#}
 
 		print join($o->{sep}, @{$this}{@dbkeys}). "\n";
-		if (length($buf) < $readLength) {
-			$fh->read($readBf, $readLength);
-			$buf .= $readBf;
-		}
+		Log(sprintf("Parsed #%3de3", $i/1e3), 5) if (!(++$i % 1e3));
 	}
 	$fh->close();
 }
