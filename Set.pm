@@ -7,7 +7,7 @@ require	Exporter;
 
 @ISA		= qw(Exporter);
 
-@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &makeHashPairs &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &multiply &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &definedDict &firstDef &firstTrue &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces &hashSlice &hashMin &moddiv &modfloor &modround &changeSet &syncSets &hashPrune);
+@EXPORT		= qw(&intersection &minus &product &union &pair &substitute &productJoin &join2 &joinNE &makeHash &makeHashPairs &dictWithKeys &mergedHashFromHash &mergeDict2dict &arrayFromKeys &mergeDict2dictDeeply &deepCopy &valuesForKeys &readHeadedTable &readHeadedTableString &readHeadedTableHandle &readCsv &writeCsv &tableColumn &tableAddColumn &writeHeadedTable &productT &productTL &arrayIsEqualTo &stripWhiteSpaceForColumns &multiply &sum &max &min &Min &Max &scaleSetTo &dictFromDictArray &toList &definedArray &definedDict &firstDef &firstTrue &compareArrays &inverseMap &dictIsContainedInDict &keysOfDictLevel &sortTextNumber &readUnheadedTable &indexOf &mapDict &subDictFromKeys &dictPath &compareSets &arrayFromDictArrayWithKey &unique &cmpSets &unlist &any &all &dict2defined &instantiateHash &order &which &whichMax &which_indeces &hashSlice &hashMin &moddiv &modfloor &modround &changeSet &syncSets &hashPrune);
 
 use TempFileNames;
 
@@ -64,6 +64,18 @@ sub instantiateHash { my ($h) = @_;
 
 sub subDictFromKeys { my ($h, $keys) = @_;
 	return makeHash($keys, arrayFromKeys($h, $keys));
+}
+
+# <p> $key is path in the form key1/key2/... translated into $dict->{key1}{key2}{...}
+my %dictPathDefaults = ( sep => '/' );
+sub dictPath { my ($dict, $path, $assign, %c) = @_;
+	%c = (%dictPathDefaults, %c);
+
+	my @path = split(/$c{sep}/, $path);
+	my $last = defined($assign)? pop(@path): undef;
+	$dict = $dict->{$_} for (@path);
+	$dict->{$last} = $assign if (defined($assign));
+	return $dict;
 }
 
 # compare arrays numerically by means of the '==' operator
