@@ -21,7 +21,7 @@ $main::d = {
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
 
-	Nfetch => 10, doRefetch => 0,
+	Nfetch => 20, doRefetch => 0,
 };
 # options
 $main::o = [
@@ -234,14 +234,14 @@ sub dbSearch { my ($c, @queries) = @_;
 	my @r = load_db($c)->search($c, $c->{type}, @queries);
 	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
 }
-sub dbFetch { my ($c, @queries) = @_;
-	load_db($c)->fetchSingle($c->{videolibrary}, $queries[0]);
-}
 sub witnessFromConfig { my ($c) = @_;
 	my $wdict = dict2defined({
 		defined($c->{fetchParameters})? %{propertyFromString('{'.$c->{fetchParameters}.'}')}: (),
 		(urlextract => $c->{urlextract}) });
 	return (%$wdict) == 0? undef: stringFromProperty($wdict);
+}
+sub dbFetch { my ($c, @queries) = @_;
+	load_db($c)->fetchSingle($c, $c->{type}, $queries[0], witnessFromConfig($c));
 }
 sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination}, witnessFromConfig($c), $c->{type});

@@ -59,6 +59,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
 			my @query = $self->queryFromExpression($query);
+print(Dumper([@query]));
 			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
@@ -319,10 +320,13 @@ class My::Schema {
 		}
 	}
 
-	method fetchSingle(Str $destination, Str $query, $pars) {
-		my @r = $self->search( ($query) );
+	method fetchSingle($c, $type, Str $query, $pars) {
+		#my @r = $self->search( ($query) );
+		my @r = $self->call(['search', [$query]], $c, $type);
+		$pars = { %{$self->call(['fetchPars'], $c, $type)}, defined($pars)? %$pars: () };
+print(Dumper($pars));
 		for my $r (@r) {
-			$r->fetchTo($destination, $pars);
+			$r->fetchTo($c->{videolibrary}, $pars);
 		}
 	}
 }
