@@ -36,10 +36,18 @@ my @mplayerOptions = ('nolirc', 'dumpstream', 'dumpfile=s');
 #	<p> mplayer wrappers
 #
 
-sub mplayer_m3u { my ($c, $file) = @_;
+sub mplayer_default { my ($c, @args) = @_;
+	my $cmd = 'mplayer '. options2str($c, @mplayerOptions). ' '. join(' ', map { qs($_) } @args);
+	System($cmd, 2);
+}
+
+sub mplayer_m3u { my ($c, @args) = @_;
+	mplayer_default($c, @args);
+	# <!> assume m3u was dumped
+	my $file = $c->{dumpfile};
 	my $spM = splitPathDict($file);
 	my @files = (grep { ! ($_ =~ m{^#}so) } read_file($file, chomp => 1));
-	my @o = map { qs($_) }  map {
+	my @o = map {
 		my $i = $_;
 		my $f = $files[$i];
 		my $sp = splitPathDict($f);
@@ -48,18 +56,15 @@ sub mplayer_m3u { my ($c, $file) = @_;
 		my $options = options2str({%$c, dumpfile => $fo}, @mplayerOptions);
 		my $cmd = "mplayer $options ". qs($f);
 		System($cmd, 4);
-		$fo		
+		$fo
 	}  (0 .. $#files);
-	my $cmd = 'mkvmerge -o '. qs($spM->{base}). '.mkv '. join(' + ', @o);
+	my $cmd = 'mkvmerge -o '. qs($spM->{base}). '.mkv '. join(' + ', map { qs($_) } @o);
 	System($cmd, 2);
 	if ($c->{unlink}) {
 		Log("Removing temp files.", 2);
+		Log("Temp files: ". join(' ', @o), 5);
+		unlink(@o);
 	}
-}
-
-sub mplayer_default { my ($c, @args) = @_;
-	my $cmd = 'mplayer '. options2str($c, @mplayerOptions). ' '. join(' ', map { qs($_) } @args);
-	System($cmd, 2);
 }
 
 my %extensionDict = ( m3u => 'm3u', m3u8 => 'm3u' );
