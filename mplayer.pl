@@ -52,13 +52,13 @@ sub mplayer_m3u { my ($c, @args) = @_;
 		my $f = $files[$i];
 		my $sp = splitPathDict($f);
 		#my $cmd = sprintf('wget -o %s-%03d.%s '. qs($f), qs($spM->{base}), $i, $sp->{extension});
-		my $fo =  sprintf('%s-%03d.%s', $spM->{base}, $i, $sp->{extension});
+		my $fo =  sprintf('%s-%03d.%s', $spM->{basePath}, $i, $sp->{extension});
 		my $options = options2str({%$c, dumpfile => $fo}, @mplayerOptions);
 		my $cmd = "mplayer $options ". qs($f);
 		System($cmd, 4);
 		$fo
 	}  (0 .. $#files);
-	my $cmd = 'mkvmerge -o '. qs($spM->{base}). '.mkv '. join(' + ', map { qs($_) } @o);
+	my $cmd = 'mkvmerge -o '. qs($spM->{basePath}). '.mkv '. join(' + ', map { qs($_) } @o);
 	System($cmd, 2);
 	if ($c->{unlink}) {
 		Log("Removing temp files.", 2);
