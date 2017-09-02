@@ -418,7 +418,8 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 
 	my %templates = (
 		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
-		http => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT'
+		http => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT',
+		https => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT'
 	);
 
 	# default format: day_title
