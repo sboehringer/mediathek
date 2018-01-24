@@ -59,7 +59,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		my $tv_item = $self->resultset('TvItem');
 		my @r = map { my $query = $_;
 			my @query = $self->queryFromExpression($query);
-print(Dumper([@query]));
+			# print(Dumper([@query]));
 			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);

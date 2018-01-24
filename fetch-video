@@ -1,0 +1,114 @@
+#!/usr/bin/env perl
+#
+#Tue Jan 23 22:15:35 CET 2018
+
+use TempFileNames;
+use Set;
+use Data::Dumper;
+use File::Slurp;
+
+# default options
+$main::d = { doReturn => 0 };
+# options
+# mplayer -nolirc URL -dumpstream -dumpfile OUTPUT
+$main::o = ['type=s', 'o|output=s'];
+$main::usage = '';
+$main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
+	mplayer.pl -nolirc file.3u8 -dumpstream -dumpfile a.out --dologonly --no-unlink
+
+HELP_TEXT
+
+my %templates = (
+	rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
+	http => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT',
+	https => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT'
+);
+
+#
+#	<p> helpers
+#
+
+sub option2str { my ($c, $o) = @_;
+	my ($n, $a) = ($o =~ m{([a-z][a-z0-9-_]+)(?:=(.))?}soi);
+	return defined($c->{$n})? "-$n". ($a ne ''? ' '. qs($c->{$n}): ''): '';
+}
+sub options2str { my ($c, @o) = @_;
+	return join(' ', map { option2str($c, $_) } @o);
+}
+my @mplayerOptions = ('nolirc', 'dumpstream', 'dumpfile=s');
+
+#
+#	<p> mplayer wrappers
+#
+
+sub mplayer_default { my ($c, @args) = @_;
+	my $cmd = 'mplayer '. options2str($c, @mplayerOptions). ' '. join(' ', map { qs($_) } @args);
+	System($cmd, 2);
+}
+
+sub mplayer_m3u { my ($c, @args) = @_;
+	mplayer_default($c, @args);
+	# <!> assume m3u was dumped
+	my $file = $c->{dumpfile};
+	my $spM = splitPathDict($file);
+	my @files = (grep { ! ($_ =~ m{^#}so) } read_file($file, chomp => 1));
+	my @o = map {
+		my $i = $_;
+		my $f = $files[$i];
+		my $sp = splitPathDict($f);
+		#my $cmd = sprintf('wget -o %s-%03d.%s '. qs($f), qs($spM->{base}), $i, $sp->{extension});
+		my $fo =  sprintf('%s-%03d.%s', $spM->{basePath}, $i, $sp->{extension});
+		my $options = options2str({%$c, dumpfile => $fo}, @mplayerOptions);
+		my $cmd = "mplayer $options ". qs($f);
+		System($cmd, 4);
+		$fo
+	}  (0 .. $#files);
+	my $cmd = 'mkvmerge -o '. qs($spM->{basePath}). '.mkv '. join(' + ', map { qs($_) } @o);
+	System($cmd, 2);
+	if ($c->{unlink}) {
+		Log("Removing temp files.", 2);
+		Log("Temp files: ". join(' ', @o), 5);
+		unlink(@o);
+	}
+}
+
+my %extensionDict = ( m3u => 'm3u', m3u8 => 'm3u' );
+sub mplayer { my ($c, @args) = @_;
+	my $file = $args[0];
+	my $sp = splitPathDict($file);
+	my $handler = 'mplayer_'. firstDef($extensionDict{$sp->{extension}}, 'default');
+	$handler->($c, @args);
+}
+
+sub youtube_dl {
+}
+
+sub flvstreamer {
+}
+
+my %hostMap = ( 'youtube.com' => 'youtube_dl' );
+my %protocolMap = ( rmtp => 'flvstreamer', http => 'youtube_dl', https => 'youtube_dl' );
+my %handlers = ( youtube_dl => \&youtube_dl, mplayer => \&mplayer, flvstreamer => \&flvstreamer );
+
+sub fetchVideo { my ($c, $i) = @_;
+	my ($protocol) = ($i =~ m{^([^:]+)://}sog);
+	my ($host) = ($i =~ m{^(?:[^:]+)://([^/]*)}sog);
+	# select type
+	my $type = firstDef(
+		$c->{type}, $ENV{VIDEO_FETCH_TYPE}, $hostMap{$host}, $protocolMap{$protocol},
+		'youtube_dl'
+	);
+	Log("Fetch $i with $type [host: $host, protocol: $protocol]", 2);
+	die("No handler for type $type") if (ref($handlers{$type}) eq '');
+	$handlers{$type}->($c, $i);
+}
+
+sub fetchVideos { my ($c, @input) = @_;
+	map { fetchVideo($c, $_) } @input;
+}
+
+#main $#ARGV @ARGV %ENV
+	#initLog(2);
+	my $c = StartStandardScript($main::d, $main::o);
+	fetchVideos($c, @ARGV);
+exit(0);
