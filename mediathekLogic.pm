@@ -416,22 +416,13 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 	use POSIX qw{strftime};
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	my %templates = (
-		rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
-		http => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT',
-		https => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT'
-	);
-
 	# default format: day_title
 	method fetchToPath($destPath, $pars) {
 		Log("URL: ". $self->url(), 2);
-		my ($protocol) = ($self->url() =~ m{^([^:]+)://}sog);
 		my $command = mergeDictToString({
 			URL => $self->url,
 			OUTPUT => qs($destPath)
-		}, $templates{$protocol});
-		#my $command = $self->command();
-		#$command = '-r '. $self->url() if (length($command) < 16);
+		}, './fetch-video --o OUTPUT URL');
 		return System($command, 2);
 	}
 

@@ -14,12 +14,11 @@ $main::d = { doReturn => 0 };
 $main::o = ['type=s', 'o|output=s'];
 $main::usage = '';
 $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
-	mplayer.pl -nolirc file.3u8 -dumpstream -dumpfile a.out --dologonly --no-unlink
+	fetch-video -nolirc file.3u8 -dumpstream -dumpfile a.out --dologonly --no-unlink
 
 HELP_TEXT
 
 my %templates = (
-	rmtp => 'flvstreamer --resume -r URL -o OUTPUT',
 	http => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT',
 	https => './mplayer.pl -nolirc URL -dumpstream -dumpfile OUTPUT'
 );
@@ -41,8 +40,10 @@ my @mplayerOptions = ('nolirc', 'dumpstream', 'dumpfile=s');
 #	<p> mplayer wrappers
 #
 
+my $mplayerTemplate = 'mplayer.pl -nolirc INPUT -dumpstream -dumpfile OUTPUT';
 sub mplayer_default { my ($c, @args) = @_;
-	my $cmd = 'mplayer '. options2str($c, @mplayerOptions). ' '. join(' ', map { qs($_) } @args);
+	#my $cmd = 'mplayer '. options2str($c, @mplayerOptions). ' '. join(' ', map { qs($_) } @args);
+	my $cmd = mergeDictToString({ INPUT => qs($ARGV[0]), OUTPUT => qs($c->{o}) }, $mplayerTemplate);
 	System($cmd, 2);
 }
 
@@ -80,10 +81,16 @@ sub mplayer { my ($c, @args) = @_;
 	$handler->($c, @args);
 }
 
-sub youtube_dl {
+my $youtube_dlTemplate = 'youtube-dl -o OUTPUT INPUT';
+sub youtube_dl { my ($c, $i) = @_;
+	my $cmd = mergeDictToString({ INPUT => qs($i), OUTPUT => qs($c->{o}) }, $youtube_dlTemplate);
+	System($cmd, 2);
 }
 
-sub flvstreamer {
+my $flvstreamerTemplate = 'flvstreamer --resume -r INPUT -o OUTPUT';
+sub flvstreamer { my ($c, $i) = @_;
+	my $cmd = mergeDictToString({ INPUT => qs($i), OUTPUT => qs($c->{o}) }, $mplayerTemplate);
+	System($cmd, 2);
 }
 
 my %hostMap = ( 'youtube.com' => 'youtube_dl' );
