@@ -20,6 +20,7 @@ $main::d = {
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
+	type => 'mediathek',
 
 	Nfetch => 20, doRefetch => 0,
 };
