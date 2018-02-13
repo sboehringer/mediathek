@@ -24,8 +24,8 @@ $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	fetch youtube playlist/channel, parse
 
 	Usage:
-	xzcat file-list | parse-videolist-json.pl --parse - > output
-	fetch-parse.youtube.pl --fetch channel/list
+	xzcat file-list | fetch-parse-youtube.pl --parse - > output
+	fetch-parse-youtube.pl --fetch channel/list
 
 HELP_TEXT
 
