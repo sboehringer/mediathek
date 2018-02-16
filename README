@@ -16,7 +16,7 @@ Stefan Böhringer <github-projects@s-boehringer.org>
 
 == Installation ==
 
-This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running. The following setup-guide expects the raspbian distribution.
+This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running.
 Dependencies have to be installed manually. Detailed installation instruction are available on the wiki for Raspbian and Opensuse.
 
 == Usage ==
