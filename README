@@ -14,41 +14,10 @@ This version is licensed under the LGPL 2.0.
 
 Stefan Böhringer <github-projects@s-boehringer.org>
 
-== Raspberry Pi setup ==
+== Installation ==
 
 This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running. The following setup-guide expects the raspbian distribution.
-
-- Dependencies
-  + sqlite
-	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl
-  + bzip2
-	sudo aptitude install bzip2
-  + xmlstarlet
-	sudo aptitude install xmlstarlet
-  + flvstreamer
-	sudo aptitude install flvstreamer
-  + mplayer
-	sudo aptitude install mplayer
-  + Perl DBIx
-	sudo aptitude install libdbi-perl libdbix-class-schema-loader-perl
-  + Perl Moose
-	sudo aptitude install libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
-
-In one go:
-	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl bzip2 xmlstarlet flvstreamer libdbi-perl libdbix-class-schema-loader-perl libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl mplayer
-
-Install into ~/src
-	# assume ~/bin exists and is in $PATH
-	# you may add the following line to ~/.bashrc
-	# export PATH=$HOME/bin:$PATH
-	( cd ~ ; mkdir --parent src MyLibrary/Configs .local/share/applications/mediathek ; ln -s `which xmlstarlet` ~/bin/xml ; cd src ; git clone git://github.com/sboehringer/mediathek.git )
-	# install crontab
-	cd ~/src/mediathek ; cat > crontab.txt <<CRONTAB
-PERL5LIB=$PERL5LIB:$HOME/src/mediathek:$HOME/bin
-PATH=$PATH:$HOME/src/mediathek
-0 4 * * *    $HOME/src/mediathek/mediathek-worker.pl --updatedb ; $HOME/src/mediathek/mediathek-worker.pl --autofetch
-CRONTAB
-	crontab -l | cat - crontab.txt | crontab -
+Dependencies have to be installed manually. Detailed installation instruction are available on the wiki for Raspbian and Opensuse.
 
 == Usage ==
 
