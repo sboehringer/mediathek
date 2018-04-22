@@ -324,7 +324,7 @@ class My::Schema {
 		#my @r = $self->search( ($query) );
 		my @r = $self->call(['search', [$query]], $c, $type);
 		$pars = { %{$self->call(['fetchPars'], $c, $type)}, defined($pars)? %$pars: () };
-print(Dumper($pars));
+		#print(Dumper($pars));
 		for my $r (@r) {
 			$r->fetchTo($c->{videolibrary}, $pars);
 		}
@@ -376,8 +376,9 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 
 	method fetchTo($dest, $pars) {
 		my $fmt = $pars->{fmt};
+		my $title;
 		my $destPath = $dest. '/'. mergeDictToString({
-			'%T' => $self->title,
+			'%T' => (($title = $self->title) =~ tr[/][|]),
 			'%D' => dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
 			'%E' => splitPathDict($self->url)->{extension},
 			'%U' => $self->annotation($pars)
