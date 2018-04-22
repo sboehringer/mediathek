@@ -14,41 +14,10 @@ This version is licensed under the LGPL 2.0.
 
 Stefan Böhringer <github-projects@s-boehringer.org>
 
-== Raspberry Pi setup ==
+== Installation ==
 
-This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running. The following setup-guide expects the raspbian distribution.
-
-- Dependencies
-  + sqlite
-	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl
-  + bzip2
-	sudo aptitude install bzip2
-  + xmlstarlet
-	sudo aptitude install xmlstarlet
-  + flvstreamer
-	sudo aptitude install flvstreamer
-  + mplayer
-	sudo aptitude install mplayer
-  + Perl DBIx
-	sudo aptitude install libdbi-perl libdbix-class-schema-loader-perl
-  + Perl Moose
-	sudo aptitude install libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl
-
-In one go:
-	sudo aptitude install sqlite3 libclass-dbi-sqlite-perl bzip2 xmlstarlet flvstreamer libdbi-perl libdbix-class-schema-loader-perl libmoosex-nonmoose-perl libmoosex-declare-perl libmoosex-markasmethods-perl libposix-strptime-perl libdata-dump-perl mplayer
-
-Install into ~/src
-	# assume ~/bin exists and is in $PATH
-	# you may add the following line to ~/.bashrc
-	# export PATH=$HOME/bin:$PATH
-	( cd ~ ; mkdir --parent src MyLibrary/Configs .local/share/applications/mediathek ; ln -s `which xmlstarlet` ~/bin/xml ; cd src ; git clone git://github.com/sboehringer/mediathek.git )
-	# install crontab
-	cd ~/src/mediathek ; cat > crontab.txt <<CRONTAB
-PERL5LIB=$PERL5LIB:$HOME/src/mediathek:$HOME/bin
-PATH=$PATH:$HOME/src/mediathek
-0 4 * * *    $HOME/src/mediathek/mediathek-worker.pl --updatedb ; $HOME/src/mediathek/mediathek-worker.pl --autofetch
-CRONTAB
-	crontab -l | cat - crontab.txt | crontab -
+This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running.
+Dependencies have to be installed manually. Detailed installation instruction are available on the wiki for Raspbian and Opensuse.
 
 == Usage ==
 
@@ -62,10 +31,12 @@ A typical scenario consists of conducting a search with
 
 QUERY follows the pattern 'key1:value1;key2:value2' where values are SQL-like patterns and keys are channel, topic, title. For example, 'title:%tagesschau%' searches for titles containing 'tagesschau'. Once a search returns proper results, '--fetch' can be used to download programs. '--addsearch' adds a search permanently causing programs to be downloaded for every ensuing '--autofetch' call. Once a download completes files can be moved or deleted. They are not re-fetched by subsequent auto-fetches. Incomplete downloads are resumed in the next auto-fetch run.
 
+The latest version allows to also download youtube channels and playlists using the same query model. See the wiki for details.
+
 == Further Documentation ==
 
 More configuration options, troubleshooting and usage scenarios are discussed on the wiki.
 
 == Power of Perl ==
 
-This project is implemented in just 350 lines of Perl code including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), please let me know. One disadvantage of this implementation is that it is slow owing to the Moose part.
+This project is implemented in just 350 lines of Perl code (initially) including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), please let me know. One disadvantage of this implementation is that it is slow owing to the Moose part.
