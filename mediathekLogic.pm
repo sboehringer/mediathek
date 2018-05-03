@@ -384,7 +384,7 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 			'%E' => splitPathDict($self->url)->{extension},
 			'%U' => $self->annotation($pars)
 		};
-		print(Dumper($d));
+		#print(Dumper($d));
 		my $destPath = $dest. '/'. mergeDictToString($d, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
