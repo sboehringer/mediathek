@@ -376,13 +376,16 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 
 	method fetchTo($dest, $pars) {
 		my $fmt = $pars->{fmt};
-		my $title;
-		my $destPath = $dest. '/'. mergeDictToString({
-			'%T' => (($title = $self->title) =~ tr[/][|]),
+		my $title = $self->title;
+		$title =~ tr[/][|];
+		my $d = {
+			'%T' => $title,
 			'%D' => dateReformat($self->date, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'),
 			'%E' => splitPathDict($self->url)->{extension},
 			'%U' => $self->annotation($pars)
-		}, $fmt, { iterative => 'no' });
+		};
+		print(Dumper($d));
+		my $destPath = $dest. '/'. mergeDictToString($d, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
 		$self->fetchToPath($destPath, $pars);
