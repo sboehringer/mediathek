@@ -197,7 +197,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		#
 		# <p> database update
 		#
-		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
+		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'url_hd', 'url_small', 'homepage');
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
 		my ($i, $icnt) = (0, 0);

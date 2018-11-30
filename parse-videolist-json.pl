@@ -36,9 +36,9 @@ sub jsonArray { my ($s) = @_;
 	return @cols;
 }
 
-my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url HD", "Url", "Website" );
-my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "homepage" );
-my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
+my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url HD", "Url", "Url Klein", "Website" );
+my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "url_small", "homepage" );
+my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'url_hd', 'url_small', 'homepage');
 my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 2048);
 sub parse { my ($o) =  @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
@@ -76,11 +76,26 @@ sub parse { my ($o) =  @_;
 
 		$this->{duration} = ceil(sum(multiply(split(/\:/, $this->{duration}), (60, 1, 1/60))))
 			if (defined($this->{duration}));
-		# <!> url_hd interpretation unclear
-		#if ($this->{url_hd} ne '') {
-		#	# url_hd only contains 
-		#	$this->{url} = firstTrue($this->{url_hd}, $this->{url});
-		#}
+
+		# high and low quality interpretation:
+		# NUMBER | URL_POSTFIX
+		# The number defines the amount of characters, used from the
+		# normal quality URL.
+		# The postfix defines, how many characters are appended
+		# afterwards.
+		# WARNING: This might change within time
+
+		if ($this->{url_hd} ne '') {
+			my ($urlPrefixCnt, $urlPostfix) = split(/\|/, $this->{url_hd}, 2);
+			my $urlPrefix = substr $this->{url}, 0, $urlPrefixCnt;
+			$this->{url_hd} = join('', $urlPrefix, $urlPostfix);
+		}
+
+		if ($this->{url_small} ne '') {
+			my ($urlPrefixCnt, $urlPostfix) = split(/\|/, $this->{url_small}, 2);
+			my $urlPrefix = substr $this->{url}, 0, $urlPrefixCnt;
+			$this->{url_small} = join('', $urlPrefix, $urlPostfix);
+		}
 
 		print join($o->{sep}, @{$this}{@dbkeys}). "\n";
 		Log(sprintf("Parsed #%3de3", $i/1e3), 5) if (!(++$i % 1e3));
