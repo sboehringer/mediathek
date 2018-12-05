@@ -231,7 +231,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
  					if (!$self->par('refreshServersCount'));
  
 		for (my $i = 0; $i < $self->par('refreshServersCount'); $i++) {
-			my $dbFile = main::meta_get([@serverList], $self->par('location'). "/database-json-$i.xz",
+			my $dbFile = main::meta_get([$serverList[$i]], $self->par('location'). "/database-json-$i.xz",
 				refetchAfter => $self->par('refreshTvitems'), seq => 0);
 			$self->updateWithJson($dbFile);
 		}
