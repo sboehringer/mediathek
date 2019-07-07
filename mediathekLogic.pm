@@ -60,7 +60,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 		my @r = map { my $query = $_;
 			my @query = $self->queryFromExpression($query);
 			# print(Dumper([@query]));
-			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if (!$self->par('doRefetch'));
+			push(@$extraTerms, { 'tv_recording.recording' => { '=' , undef } }) if ($self->par('doRefetch'));
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
 			my @items = $tv_item->search({ -and => \@queryF },
@@ -222,19 +222,27 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		Log(sprintf('Added %d items.', $icnt), 3);
 	}
 	method update() {
-		my @serverList = $self->serverList();
- 		Log("Number of servers to probe: ". $self->par('refreshServersCount'), 5);
+# 		my @serverList = $self->serverList();
+# 		my ($N, $M) = (int(@serverList), $self->par('refreshServersCount'));
+# 		my @is = (0, map { $_->[1] } sort { $a->[0] <=> $b->[0] } map { [rand(), $_] } 1 .. ($N - 1));
+# 		@is = @is[0 .. ($M - 1)];
+#  		Log("Number of servers to probe: ". $M. "; chosen severs [indeces]: ". join(', ', @is), 5);
+# 
+# #  		$self->updateWithJson(main::meta_get([$serverList[0]],
+# #  			$self->par('location')."/database-json.xz",
+# #  				refetchAfter => $self->par('refreshTvitems'), seq => 0))
+# #  					if (!$self->par('refreshServersCount'));
+#  
+# 		#for (my $i = 0; $i < $self->par('refreshServersCount'); $i++) {
+# 		foreach my $i (@is) {
+# 			my $dbFile = main::meta_get([$serverList[$i]], $self->par('location'). "/database-json-$i.xz",
+# 				refetchAfter => $self->par('refreshTvitems'), seq => 0);
+# 			$self->updateWithJson($dbFile);
+# 		}
 
- 		$self->updateWithJson(main::meta_get([$serverList[0]],
- 			$self->par('location')."/database-json.xz",
- 				refetchAfter => $self->par('refreshTvitems'), seq => 0))
- 					if (!$self->par('refreshServersCount'));
- 
-		for (my $i = 0; $i < $self->par('refreshServersCount'); $i++) {
-			my $dbFile = main::meta_get([$serverList[$i]], $self->par('location'). "/database-json-$i.xz",
-				refetchAfter => $self->par('refreshTvitems'), seq => 0);
-			$self->updateWithJson($dbFile);
-		}
+		my $dbFile = main::meta_get([$self->par('mediathekList')],
+			$self->par('location'). "/database-json.xz");
+		$self->updateWithJson($dbFile);
 	}
 	method fetchPars() { return { fmt => '%D_%T%U.%E' }; }
 

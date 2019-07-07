@@ -19,10 +19,11 @@ $main::d = {
 	config => 'mediathek.cfg', configPaths => [ $ENV{MEDIATHEK_CONFIG} ],
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
+	mediathekist => 'https://liste.mediathekview.de/Filmliste-akt.xz',
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
 	type => 'mediathek',
 
-	Nfetch => 20, doRefetch => 0,
+	Nfetch => 20, doRefetch => 1,
 };
 # options
 $main::o = [
@@ -83,7 +84,7 @@ my $parsMediathek = stringFromProperty({
 	serverUrl => 'http://zdfmediathk.sourceforge.net/update-json.xml',
 	keepForDays => 10,
 	refreshServers => 0,
-	refreshServersCount => 1,
+	refreshServersCount => 3,
 });
 my $sqlitedb = <<"DBSCHEMA";
 	CREATE TABLE tv_item (

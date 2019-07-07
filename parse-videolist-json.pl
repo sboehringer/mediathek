@@ -13,9 +13,11 @@ use Data::Dumper;
 use POSIX qw{ceil};
 
 # default options
-$main::d = { triggerPrefix => '', sep => ':<>:', parse => '-' };
+#	v1: json file format <= 2018
+#	v2: json file format > 2018
+$main::d = { triggerPrefix => '', sep => ':<>:', parse => '-', version => 'v2' };
 # options
-$main::o = [ '+parse=s', 'sep=s' ];
+$main::o = [ '+parse=s', 'sep=s', 'version=s' ];
 $main::usage = '';
 $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	Parse JSON file to pseuso-csv
@@ -35,11 +37,23 @@ sub jsonArray { my ($s) = @_;
 	my @cols = map { extractString($_) } ($s =~ m{(?:($stringREraw)(?:\s*,\s*)?)}sog);
 	return @cols;
 }
+# JSON as of 20.1.2019
+#"Filmliste":["Sender","Thema","Titel","Datum","Zeit","Dauer","Größe [MB]","Beschreibung","Url","Website","Url Untertitel","Url RTMP","Url Klein","Url RTMP Klein","Url HD","Url RTMP HD","DatumL","Url History","Geo","neu"],"
 
 my @colSel = ("Sender", "Thema", "Titel", "Datum", "Zeit", "Dauer", "Url HD", "Url", "Website" );
 my @colDf = ("channel", "topic", "title", "date", "time", "duration", "url_hd", "url", "homepage" );
 my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
-my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 2048);
+my $readLength = firstDef($ENV{PARSE_VIDEOLIST_JSON_READLENGTH}, 8192);
+my %re = (
+	v1 => {
+		header => '(?:.*)Filmliste"\s*:\s*\[("Sender"(?:[^[]*|\[.*?\])*)\](.*)',
+		element => '"X":\[((?:[^[]*|\[.*?\])*?)\](.*)'
+	},
+	v2 => {
+		header => '"Filmliste":\[("Sender"(?:[^[]*|\[.*?\])*)\](.*)',
+		element => '"X":\[((?:[^[]*|\[.*?\])*?)\](.*)'
+	}
+);
 sub parse { my ($o) =  @_;
 	my $fh = ($o->{parse} eq '-')? IO::Handle->new_from_fd(STDIN, "r"): IO::File->new("< $o->{parse}");
 	die "could not open:$o->{parse}" if (!defined($fh));
@@ -48,17 +62,18 @@ sub parse { my ($o) =  @_;
 	my ($this, $prev, $i, $buf, $readBf, $m, $r) = ({}, {}, 0);
 	$fh->read($buf, $readLength);
 	# determine indeces of relevant columns
-	die "No header found" if (!($buf =~ m/^(.*)Filmliste"\s*:\s*\[("Sender"(?:[^[]*|\[.*?\])*)\](.*)/));
-	@colIndeces = which_indeces([@colSel], [jsonArray($2)]);
+	die "No header found" if (!($buf =~ m/$re{$o->{version}}{header}/));
+	Log("Column identifiers: $1", 5);
+	@colIndeces = which_indeces([@colSel], [jsonArray($1)]);
 	$fh->read($readBf, $readLength);
-	$buf = $3. $readBf;
+	$buf = $2. $readBf;
 
 	while ($buf =~ m{"X":}so) {
 		if (length($buf) < $readLength) {
 			$fh->read($readBf, $readLength);
 			$buf .= $readBf;
 		}
-		($m, $buf) = ($buf =~ m{"X":\[((?:[^[]*|\[.*?\])*?)\](.*)}so);
+		($m, $buf) = ($buf =~ m{$re{$o->{version}}{element}}so);
 		#print("Match: ". $m. "\nBuffer: ". $buf. "\n");
 
 		#my @cols = map { s/\n/ /sog } ($1 =~ m{(?:($stringRE)(?:\s*,\s*)?)}sog);
