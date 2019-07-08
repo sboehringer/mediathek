@@ -19,11 +19,11 @@ $main::d = {
 	config => 'mediathek.cfg', configPaths => [ $ENV{MEDIATHEK_CONFIG} ],
 	location => firstDef($ENV{MEDIATHEK_DB}, "$ENV{HOME}/.local/share/applications/mediathek"),
 	videolibrary => firstDef($ENV{MEDIATHEK_LIBRARY}, "$ENV{HOME}/Videos/Mediathek"),
-	mediathekist => 'https://liste.mediathekview.de/Filmliste-akt.xz',
+	mediathekList => 'https://liste.mediathekview.de/Filmliste-akt.xz',
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
 	type => 'mediathek',
 
-	Nfetch => 20, doRefetch => 1,
+	Nfetch => 1, doRefetch => 1,
 };
 # options
 $main::o = [
@@ -32,7 +32,7 @@ $main::o = [
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
-	'+iteratesources=s'
+	'+iteratesources=s', '+printPars'
 ];
 $main::usage = '';
 $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
@@ -264,6 +264,10 @@ sub dbUpdatesearch { my ($c, @ids) = @_;
 sub dbIteratesources { my ($c) = @_;
 	Log('Iterate sources', 2);
 	load_db($c)->iterate_sources($c->{iteratesources});	
+}
+
+sub dbPrintPars { my ($c) = @_;
+	print(Dumper($c));
 }
 
 #main $#ARGV @ARGV %ENV

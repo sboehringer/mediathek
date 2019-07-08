@@ -241,7 +241,8 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 # 		}
 
 		my $dbFile = main::meta_get([$self->par('mediathekList')],
-			$self->par('location'). "/database-json.xz");
+			$self->par('location'). "/database-json.xz",
+			retries => $self->par('Nfetch'));
 		$self->updateWithJson($dbFile);
 	}
 	method fetchPars() { return { fmt => '%D_%T%U.%E' }; }
