@@ -227,7 +227,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 			#($item0->insert, $icnt++) if (!$item0->in_storage);
 			if (!$item0->in_storage) {
 				my $r = $item0->insert;
-				if ($item->{topic} =~ /Maus/o) { print(Dumper($item)); main::myDebug(); }
+				#if ($item->{topic} =~ /Maus/o) { print(Dumper($item)); main::myDebug(); }
 				$ecnt++ if (!$item0->in_storage);
 				$icnt++;
 			} else {
