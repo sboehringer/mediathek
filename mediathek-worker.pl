@@ -23,12 +23,12 @@ $main::d = {
 	itemTable => 'default', searchTable => 'default', triggerPrefix => 'db',
 	type => 'mediathek',
 
-	Nfetch => 1, doRefetch => 1,
+	Nfetch => 20, NdbFetch => 1, doRefetch => 1,
 };
 # options
 $main::o = [
 	'destination=s', 'urlextract=s', 'itemTable=s', 'searchTable=s', 'type=s',
-	'Nfetch=s', 'fetchParameters=s',
+	'Nfetch=s', 'NdbFetch=s', 'fetchParameters=s',
 	'+createdb', '+updatedb',
 	'+search', '+addsearch', '+deletesearch', '+updatesearch', '+fetch', '+autofetch',
 	'+dump', '+dumpschema', '+printconfig', '+serverlist', '+prune',
@@ -97,10 +97,10 @@ my $sqlitedb = <<"DBSCHEMA";
 		duration integer,
 		homepage text,
 		type integer REFERENCES tv_type(id) not null,
-		UNIQUE(channel, date, title, type),
+		UNIQUE(channel, date, topic, title, url, type),
 		UNIQUE(url)
 	);
-	CREATE INDEX tv_item_idx ON tv_item (channel, topic, title, date);
+	CREATE INDEX tv_item_idx ON tv_item (channel, date, topic, title, url, type);
 	CREATE INDEX tv_item_topic_idx ON tv_item (topic);
 	CREATE INDEX tv_item_title_idx ON tv_item (title);
 	CREATE INDEX tv_item_type_idx ON tv_item (type);
@@ -268,6 +268,10 @@ sub dbIteratesources { my ($c) = @_;
 
 sub dbPrintPars { my ($c) = @_;
 	print(Dumper($c));
+}
+
+sub myDebug {
+	Log("Reached debug point.", 1);
 }
 
 #main $#ARGV @ARGV %ENV

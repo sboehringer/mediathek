@@ -64,7 +64,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
 			my @items = $tv_item->search({ -and => \@queryF },
-				{ join => 'tv_recording', rows => $self->par('Nfetch') });
+				{ join => 'tv_recording', rows => firstDef($self->par('Nfetch'), 20) });
 			Log("Number of items to be fetched: ". @items, 2);
 			@items
 		} @$queries;
@@ -170,7 +170,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
 		my $prune_str = strftime("%Y-%m-%d %H:%M:%S",
 			localtime($now - $keepForDays * 86400));
-		Log("Now: $now_str, pruning older than: $prune_str", 1);
+		Log("Now: $now_str, pruning older than: $prune_str [$keepForDays days]", 1);
 		my $tv = $self->resultset('TvItem');
 		my $tv_rs = $tv->search_rs({ date => { '<' => $prune_str } });
 		Log('About to delete '. $tv_rs->count. ' items.', 1);
@@ -186,6 +186,11 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		return @serverList;
 	}
 
+	#
+	#	<p> debugging
+	#
+	#pushd ~/.local/share/applications/mediathek/ ; rm mediathek.db ; popd ; ./mediathek-worker.pl --createdb ; perl -d ./mediathek-worker.pl --updatedb
+	# b myDebug
 	method updateWithJson($path) {
 		#
 		# <p> xml parsing of new items
@@ -200,23 +205,35 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my @dbkeys = ('channel', 'topic', 'title', 'date', 'duration', 'url', 'homepage');
 		my $fh = IO::File->new("$cmd |");
 		die "couldn't read '$path'" if (!defined($fh));
-		my ($i, $icnt) = (0, 0);
+		my ($i, $icnt, $scnt, $dcnt, $ecnt) = (0, 0, 0, 0, 0);
 		my $now = time();
 		my $tv = $self->resultset('TvItem');
 		my $deadline = $now - $self->par('keepForDays') * 86400;
-		while (my $l = substr(<$fh>, 0, -1)) {
+		while (my $l = <$fh>) {
+			$l = substr($l, 0, -1);
 			no warnings;
 			if (!(++$i % 1e3)) {
 				$self->resultset('TvItem')->clear_cache();
-				Log(sprintf("%3de3th entry", $i/1e3), 4);
+				#Log(sprintf("%3de3th entry [skipped: %3de3]", $i/1e3, $scnt/1e3), 4);
+				Log(sprintf("#%3d [I%3d, D%3d, S%3d] e3, [E$ecnt]",
+					$i/1e3, ($icnt + 5e2 - 1)/1e3, ($dcnt + 5e2 - 1)/1e3, ($scnt + 5e2 - 1)/1e3), 4);
 			}
 			my $item = {%{makeHash(\@dbkeys, [split(/$sep/, $l)])}, type => $self-> id};
 			my $itemTime = mktime(strptime($item->{date}, "%Y-%m-%d %H:%M:%S"));
-			next if ($itemTime < $deadline);
+			($scnt++, next) if ($itemTime < $deadline);
 			#my $i = $tv->find_or_create($item, { key => 'channel_date_title_unique' });
 			#my $item0 = $tv->find_or_new($item, { key => 'channel_date_title_type_unique' });
 			my $item0 = $tv->find_or_new($item);
-			($item0->insert, $icnt++) if (!$item0->in_storage);
+			#($item0->insert, $icnt++) if (!$item0->in_storage);
+			if (!$item0->in_storage) {
+				my $r = $item0->insert;
+				if ($item->{topic} =~ /Maus/o) { print(Dumper($item)); main::myDebug(); }
+				$ecnt++ if (!$item0->in_storage);
+				$icnt++;
+			} else {
+				#main::myDebug();
+				$dcnt++;
+			}
 		}
 		$fh->close();
 		Log(sprintf('Added %d items.', $icnt), 3);
@@ -242,7 +259,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 
 		my $dbFile = main::meta_get([$self->par('mediathekList')],
 			$self->par('location'). "/database-json.xz",
-			retries => $self->par('Nfetch'));
+			retries => $self->par('NdbFetch'));
 		$self->updateWithJson($dbFile);
 	}
 	method fetchPars() { return { fmt => '%D_%T%U.%E' }; }
