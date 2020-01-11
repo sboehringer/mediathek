@@ -451,8 +451,9 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 		Log("URL: ". $self->url(), 2);
 		my $command = mergeDictToString({
 			URL => $self->url,
-			OUTPUT => qs($destPath)
-		}, './fetch-video --o OUTPUT URL');
+			OUTPUT => qs($destPath),
+			PROXY => qs($pars->{proxy})
+		}, './fetch-video --proxy PROXY --o OUTPUT URL');
 		return System($command, 2);
 	}
 

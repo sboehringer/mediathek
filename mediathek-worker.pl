@@ -73,6 +73,8 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --fetch --urlextract '//_:h2[@class="text-thin mb-20"]' 
 	# show homepage scraping for autofetches
 	mediathek-worker.pl --addsearch 'channel:ARTE%;title:360%;time:08:00:00' --destination Geo --urlextract '//_:h2[@class="text-thin mb-20"]'
+	# Use proxy [youtube-dl syntax]
+	./mediathek-worker.pl --search 'topic:%Babylon%;title:Folge%;title:!%fassung%' --Nfetch 1 --fetchParameters 'proxy=socks5://localhost:60247'
 
 	Debugging functions:
 	mediathek-worker.pl --dump
@@ -238,12 +240,13 @@ sub dbSearch { my ($c, @queries) = @_;
 }
 sub witnessFromConfig { my ($c) = @_;
 	my $wdict = dict2defined({
-		defined($c->{fetchParameters})? %{propertyFromString('{'.$c->{fetchParameters}.'}')}: (),
-		(urlextract => $c->{urlextract}) });
+		defined($c->{fetchParameters})? %{propertyFromString('{'. $c->{fetchParameters}. '}')}: (),
+		(urlextract => $c->{urlextract}, Nfetch => $c->{Nfetch} ) });
 	return (%$wdict) == 0? undef: stringFromProperty($wdict);
 }
 sub dbFetch { my ($c, @queries) = @_;
-	load_db($c)->fetchSingle($c, $c->{type}, $queries[0], witnessFromConfig($c));
+	my $pars = witnessFromConfig($c);
+	load_db($c)->fetchSingle($c, $c->{type}, $queries[0], defined($pars)? propertyFromString($pars): {});
 }
 sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination}, witnessFromConfig($c), $c->{type});

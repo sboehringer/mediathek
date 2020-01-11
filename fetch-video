@@ -11,7 +11,7 @@ use File::Slurp;
 $main::d = { doReturn => 0 };
 # options
 # mplayer -nolirc URL -dumpstream -dumpfile OUTPUT
-$main::o = ['type=s', 'o|output=s'];
+$main::o = ['type=s', 'o|output=s', 'proxy=s'];
 $main::usage = '';
 $main::helpText = <<HELP_TEXT.$TempFileNames::GeneralHelp;
 	fetch-video -nolirc file.3u8 -dumpstream -dumpfile a.out --dologonly --no-unlink
@@ -81,9 +81,13 @@ sub mplayer { my ($c, @args) = @_;
 	$handler->($c, @args);
 }
 
-my $youtube_dlTemplate = 'youtube-dl -o OUTPUT INPUT';
+my $youtube_dlTemplate = 'youtube-dl --proxy PROXY -o OUTPUT INPUT';
 sub youtube_dl { my ($c, $i) = @_;
-	my $cmd = mergeDictToString({ INPUT => qs($i), OUTPUT => qs($c->{o}) }, $youtube_dlTemplate);
+	my $cmd = mergeDictToString({
+		INPUT => qs($i),
+		OUTPUT => qs($c->{o}),
+		PROXY => qs($c->{proxy})
+	}, $youtube_dlTemplate);
 	System($cmd, 2);
 }
 
