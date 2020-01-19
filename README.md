@@ -1,25 +1,29 @@
-== Description ==
+# Project
+
+## Description
 
 This project is a command line equivalent to the Mediathekview project on sourceforge (http://zdfmediathk.sourceforge.net). It allows you to set up automatic downloads for programming from German public TV stations. This project is freeloading on the data infrastructure provided by the sourceforge project (refreshing of programming content). Please support the Mediathekview project in maintaining their service in this regard and otherwise.
 
-== Version ==
-
-This is the current development version from the master branch. Youtube scraping has recently been introduced but not yet documented. The stable version is 1.1 available from the releases (without youtube support).
-
-== License ==
-
-This version is licensed under the LGPL 2.0.
-
-== Author ==
+## Author
 
 Stefan Böhringer <github-projects@s-boehringer.org>
 
-== Installation ==
+# Release
+
+## Version
+
+This is the current development version from the master branch. Youtube scraping has recently been introduced but not yet documented. The latest stable version is 1.2 available from the releases. It adds proxy support and a number of bug fixes.
+
+## License
+
+This version is licensed under the LGPL 2.0.
+
+## Installation
 
 This project is meant to be small enough to run on a Raspberry Pi. A typical workload requires 100Mb of RAM and should therefore comfortably run on a Raspberry Pi that has no other big loads running.
 Dependencies have to be installed manually. Detailed installation instruction are available on the wiki for Raspbian and Opensuse.
 
-== Usage ==
+# Usage
 
 Get help with
 
@@ -33,10 +37,10 @@ QUERY follows the pattern 'key1:value1;key2:value2' where values are SQL-like pa
 
 The latest version allows to also download youtube channels and playlists using the same query model. See the wiki for details.
 
-== Further Documentation ==
+## Further Documentation
 
 More configuration options, troubleshooting and usage scenarios are discussed on the wiki.
 
-== Power of Perl ==
+## Power of Perl
 
 This project is implemented in just 350 lines of Perl code (initially) including data model, database setup, a clean OO implementation of program logic and self-documentation. It makes use of the DBIx object-relational mapping framework and the Moose OO framework. If you think you can best this implementation in terms of brevity and/or clarity (in Perl or another scripting language), please let me know. One disadvantage of this implementation is that it is slow owing to the Moose part.
