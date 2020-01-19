@@ -88,13 +88,13 @@ sub youtube_dl { my ($c, $i) = @_;
 		OUTPUT => qs($c->{o}),
 		PROXY => qs($c->{proxy})
 	}, $youtube_dlTemplate);
-	System($cmd, 2);
+	return System($cmd, 2);
 }
 
 my $flvstreamerTemplate = 'flvstreamer --resume -r INPUT -o OUTPUT';
 sub flvstreamer { my ($c, $i) = @_;
 	my $cmd = mergeDictToString({ INPUT => qs($i), OUTPUT => qs($c->{o}) }, $mplayerTemplate);
-	System($cmd, 2);
+	return System($cmd, 2);
 }
 
 my %hostMap = ( 'youtube.com' => 'youtube_dl' );
@@ -111,7 +111,7 @@ sub fetchVideo { my ($c, $i) = @_;
 	);
 	Log("Fetch $i with $type [host: $host, protocol: $protocol]", 2);
 	die("No handler for type $type") if (ref($handlers{$type}) eq '');
-	$handlers{$type}->($c, $i);
+	return $handlers{$type}->($c, $i);
 }
 
 sub fetchVideos { my ($c, @input) = @_;
@@ -121,5 +121,5 @@ sub fetchVideos { my ($c, @input) = @_;
 #main $#ARGV @ARGV %ENV
 	#initLog(2);
 	my $c = StartStandardScript($main::d, $main::o);
-	fetchVideos($c, @ARGV);
-exit(0);
+	my $exit = fetchVideos($c, @ARGV);
+exit($exit);
