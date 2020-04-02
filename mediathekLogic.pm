@@ -57,6 +57,7 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 	method search($queries, $extraTerms = []) {
 		#$extraTerms = [] if (!defined($extraTerms));
 		my $tv_item = $self->resultset('TvItem');
+		main::myDebug();
 		my @r = map { my $query = $_;
 			my @query = $self->queryFromExpression($query);
 			# print(Dumper([@query]));
@@ -64,7 +65,8 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
 			my @items = $tv_item->search({ -and => \@queryF },
-				{ join => 'tv_recording', rows => firstDef($self->par('Nfetch'), 20) });
+				{ join => 'tv_recording', join_type => firstDef($self->par('force'), 0)? 'left': 'inner',
+				  rows => firstDef($self->par('Nfetch'), 20) });
 			Log("Number of items to be fetched: ". @items, 2);
 			@items
 		} @$queries;
@@ -309,7 +311,7 @@ class My::Schema {
 
 	method update($c, $type) { $self->call('update', $c, $type); }
 	method auto_fetch($c, $type) { $self->call('auto_fetch', $c, $type); }
-	method search($c, $type, @queries) { $self->call(['search', [@queries]], $c, $type); }
+	method search($c, $type, $queries) { $self->call(['search', $queries], $c, $type); }
 
 	method add_search($queries, $destination = '', $witness = '', $type = 'mediathek') {
 		my $query = $self->resultset('TvGrep');
@@ -414,7 +416,8 @@ class My::Schema::Result::TvItem::Base extends My::Schema::Result::TvItem {
 		my $destPath = $dest. '/'. mergeDictToString($d, $fmt, { iterative => 'no' });
 		Log("Fetching ". $self->title. " to ". $destPath, 1);
 		Mkpath($dest, 5);
-		$self->fetchToPath($destPath, $pars);
+		my $r = $self->fetchToPath($destPath, $pars);
+		return !(!$r && -e $destPath);	# 0: success; > 0: failure
 	}
 
 	__PACKAGE__->meta->make_immutable( inline_constructor => 0 );

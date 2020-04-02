@@ -75,6 +75,8 @@ $main::helpText = <<'HELP_TEXT'.$TempFileNames::GeneralHelp;
 	mediathek-worker.pl --addsearch 'channel:ARTE%;title:360%;time:08:00:00' --destination Geo --urlextract '//_:h2[@class="text-thin mb-20"]'
 	# Use proxy [youtube-dl syntax]
 	./mediathek-worker.pl --search 'topic:%Babylon%;title:Folge%;title:!%fassung%' --Nfetch 1 --fetchParameters 'proxy=socks5://localhost:60247'
+	# Show/fetch items even if previously fetched already
+	./mediathek-worker.pl --search 'topic:%Babylon%;title:Folge%;title:!%fassung%' --Nfetch 1 --fetchParameters 'force=1'
 
 	Debugging functions:
 	mediathek-worker.pl --dump
@@ -233,20 +235,28 @@ sub dbUpdatedb { my ($c, $xml) = @_;
 sub dbAutofetch { my ($c) = @_;
 	load_db($c)->auto_fetch($c, $c->{type});
 }
-sub dbSearch { my ($c, @queries) = @_;
-	#my @r = load_db($c)->search(@queries);
-	my @r = load_db($c)->search($c, $c->{type}, @queries);
-	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
+sub postadd { my ($s, $post) = @_;
+	return substr($s, length($s) - 1, 1) eq $post? $s: ($s. $post);
 }
 sub witnessFromConfig { my ($c) = @_;
 	my $wdict = dict2defined({
-		defined($c->{fetchParameters})? %{propertyFromString('{'. $c->{fetchParameters}. '}')}: (),
-		(urlextract => $c->{urlextract}, Nfetch => $c->{Nfetch} ) });
+		defined($c->{fetchParameters})
+		? %{propertyFromString('{'. postadd($c->{fetchParameters}, ';'). '}')}
+		: (),
+		(urlextract => $c->{urlextract}, Nfetch => $c->{Nfetch} )
+	});
 	return (%$wdict) == 0? undef: stringFromProperty($wdict);
 }
+sub toProp { return defined($_[0])? propertyFromString($_[0]): {}; }
+sub dbSearch { my ($c, @queries) = @_;
+	#my @r = load_db($c)->search(@queries);
+	my $pars = toProp(witnessFromConfig($c));
+	my @r = load_db($c)->search({%$c, %$pars}, $c->{type}, [@queries]);
+	print(formatTable(firstDef($c->{itemTableFormatting}{$c->{itemTable}}, \%TvTableDesc), \@r). "\n");
+}
 sub dbFetch { my ($c, @queries) = @_;
-	my $pars = witnessFromConfig($c);
-	load_db($c)->fetchSingle($c, $c->{type}, $queries[0], defined($pars)? propertyFromString($pars): {});
+	my $pars = toProp(witnessFromConfig($c));
+	load_db($c)->fetchSingle({%$c, %$pars}, $c->{type}, $queries[0], $pars);
 }
 sub dbAddsearch { my ($c, @queries) = @_;
 	my @searches = load_db($c)->add_search([@queries], $c->{destination}, witnessFromConfig($c), $c->{type});
@@ -273,6 +283,7 @@ sub dbPrintPars { my ($c) = @_;
 	print(Dumper($c));
 }
 
+# breakpoint on this function, call from where to stop, return
 sub myDebug {
 	Log("Reached debug point.", 1);
 }
