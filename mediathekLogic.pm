@@ -65,7 +65,8 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 			my @queryF = (@query,
 				{ type => $self->id }, @$extraTerms);
 			my @items = $tv_item->search({ -and => \@queryF },
-				{ join => 'tv_recording', join_type => firstDef($self->par('force'), 0)? 'left': 'inner',
+				{ join => 'tv_recording',
+				  #join_type => firstDef($self->par('force'), 0)? 'left': 'inner',
 				  rows => firstDef($self->par('Nfetch'), 20) });
 			Log("Number of items to be fetched: ". @items, 2);
 			@items
