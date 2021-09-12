@@ -90,8 +90,12 @@ class My::Schema::Result::TvType::Base extends My::Schema::Result::TvType {
 			Log("Fetching expression: ". $q->expression, 3);
 			for my $r ( ($self->search([$q->expression], $self->constraints($q))) ) {
 				my $pars = $q->witness eq ''? {}: propertyFromString($q->witness);
-				my $ret = $r->fetchTo($destination. '/'. $q->destination, {%$fetchPars, %$pars });
-				$self->resultset('TvRecording')->create({ recording => $r->id }) if (!$ret);
+				my $o = $destination. '/'. $q->destination;
+				my $ret = $r->fetchTo($o, {%$fetchPars, %$pars });
+				# ignore return code, check for file existence
+				if (-e $o && Stat($o)->{size} > 0) {
+					$self->resultset('TvRecording')->create({ recording => $r->id });
+				}
 				Log(sprintf('Recording success [%s]: %d', $r->title, $ret), 5);
 			}
 		}
@@ -169,7 +173,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method prune(Num $keepForDays = 10) {
+	method prune(Num $keepForDays = 10, $keepPerChannel) {
 		my $now = time();
 		my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
 		my $prune_str = strftime("%Y-%m-%d %H:%M:%S",
