@@ -173,7 +173,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 
 	__PACKAGE__->add_column(qw{id name parameters});
 
-	method prune(Num $keepForDays = 10, $keepPerChannel) {
+	method prune(Num $keepForDays = 10) {
 		my $now = time();
 		my $now_str = strftime("%Y-%m-%d %H:%M:%S", localtime($now));
 		my $prune_str = strftime("%Y-%m-%d %H:%M:%S",
