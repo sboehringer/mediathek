@@ -217,6 +217,7 @@ class My::Schema::Result::TvType::Mediathek extends My::Schema::Result::TvType::
 		my $now = time();
 		my $tv = $self->resultset('TvItem');
 		my $deadline = $now - $self->par('keepForDays') * 86400;
+		Log("I: inserted, D: duplicates, S: skipped, E: errors", 4);
 		while (my $l = <$fh>) {
 			$l = substr($l, 0, -1);
 			no warnings;
