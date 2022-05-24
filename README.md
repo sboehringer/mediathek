@@ -2,7 +2,7 @@
 
 ## Installation on current perl versions (2022/05)
 
-Unfortunately, as of May 2022, it is impossible to install the project on a current perl install. I have fixed perl to 5.26.1 using perlbrew. Fixing module versions allow to run this project.
+Unfortunately, as of May 2022, it is impossible to install the project on a current perl install. I have fixed perl to 5.26.1 using perlbrew. Fixing some module versions allows to run this project. Probably a more recent perl version works, but this is untested.
 
 ```
 cpanm Moo@2.003004 List::MoreUtils clone aliased Devel::Declare@0.006019 Sub::Name Class::Load::XS@0.10 Moose HTTP::Headers@6.14 LWP::Simple@6.31 DBIx::Class::Schema::Loader@0.07049 DBIx::Class::DynamicSubclass@0.03 Data::Dumper::Consise DateTime::Format::Strptime MooseX::KavorkaInfo@0.039 MooseX::NonMoose@0.26 MooseX::Declare@0.43 MooseX::MarkAsMethods
