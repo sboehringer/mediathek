@@ -1,5 +1,15 @@
 # Project
 
+## Installation on current perl versions (2022/05)
+
+Unfortunately, as of May 2022, it is impossible to install the project on a current perl install. I have fixed perl to 5.26.1 using perlbrew. Fixing module versions allow to run this project.
+
+```
+cpanm Moo@2.003004 List::MoreUtils clone aliased Devel::Declare@0.006019 Sub::Name Class::Load::XS@0.10 Moose HTTP::Headers@6.14 LWP::Simple@6.31 DBIx::Class::Schema::Loader@0.07049 DBIx::Class::DynamicSubclass@0.03 Data::Dumper::Consise DateTime::Format::Strptime MooseX::KavorkaInfo@0.039 MooseX::NonMoose@0.26 MooseX::Declare@0.43 MooseX::MarkAsMethods
+```
+
+I have tried to port the project to Moops but did not manage to get an install with either perl 5.26.1 or 5.34.0. This implies that this project enters legacy status unless progress with Moops happens.
+
 ## Description
 
 This project is a command line equivalent to the Mediathekview project on sourceforge (http://zdfmediathk.sourceforge.net). It allows you to set up automatic downloads for programming from German public TV stations. This project is freeloading on the data infrastructure provided by the sourceforge project (refreshing of programming content). Please support the Mediathekview project in maintaining their service in this regard and otherwise.
