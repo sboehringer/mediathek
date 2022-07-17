@@ -219,8 +219,9 @@ sub meta_get { my ($urls, $o, %c) = @_;
 		my $no = $c{seq}? ($i % int(@$urls)): int(rand($total));
 		my $url = $urls->[$no];
 		Log("Fetching $url --> $o [No: $no/$total]", 4);
-		my $response = getstore($url, $o);
-		last if ($response == 200);
+		#my $response = getstore($url, $o);
+		#last if ($response == 200);
+		last if !System('curl -o '.qs($o). " $url", 4);
 	}
 	Log("Written to: $o", 5);
 	return $o;
