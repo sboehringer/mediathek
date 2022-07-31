@@ -81,7 +81,8 @@ sub mplayer { my ($c, @args) = @_;
 	$handler->($c, @args);
 }
 
-my $youtube_dlTemplate = 'youtube-dl --proxy PROXY -o OUTPUT INPUT';
+#my $youtube_dlTemplate = 'youtube-dl --proxy PROXY -o OUTPUT INPUT';
+my $youtube_dlTemplate = 'yt-dlp --proxy PROXY -o OUTPUT INPUT';
 sub youtube_dl { my ($c, $i) = @_;
 	my $cmd = mergeDictToString({
 		INPUT => qs($i),

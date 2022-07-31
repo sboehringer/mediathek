@@ -463,7 +463,7 @@ class My::Schema::Result::TvItem::Mediathek extends My::Schema::Result::TvItem::
 			URL => $self->url,
 			OUTPUT => qs($destPath),
 			PROXY => qs($pars->{proxy})
-		}, './fetch-video --proxy PROXY --o OUTPUT URL');
+		}, (-e 'fetch-video'? './': ''). 'fetch-video --proxy PROXY --o OUTPUT URL');
 		return System($command, 2);
 	}
 
