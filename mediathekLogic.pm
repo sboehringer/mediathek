@@ -119,7 +119,7 @@ class My::Schema::Result::TvType::Youtube extends My::Schema::Result::TvType::Ba
 			$self->queryFromExpression($channel->expression)]->[0]{channel};
 		Log("Channel update: $ct", 3);
 		my $url = 'https://www.youtube.com'. (substr($ct, 0, 1) eq '/'? $ct: ('/channel/'. $ct));
-		my $cmd = './fetch-parse-youtube.pl --fetch '. $url;
+		my $cmd = (-e 'fetch-parse-youtube.pl'? './': ''). 'fetch-parse-youtube.pl --fetch '. $url;
 		#
 		# <p> database update
 		#
